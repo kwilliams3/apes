@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {usernameBase,availableUsername} from '../server/accounts.js';
+test('identifiant normalise accents, noms multiples et prenom vide',()=>{assert.equal(usernameBase({Nom:'Émile',Prenom:'Dupont'}),'e-dupont');assert.equal(usernameBase({Nom:'Jean Paul',Prenom:'Marie Claire'}),'j-marie');assert.equal(usernameBase({Nom:'Jean Paul',Prenom:''}),'j-paul');assert.ok(usernameBase({Nom:'Nom',Prenom:'x'.repeat(150)}).length<=10);});
+
+test('doublons : un seul tiret et dix caractères maximum, suffixe compris',()=>{const base=usernameBase({Nom:'Nom',Prenom:'Alexandrine'}),taken=new Set();for(let i=0;i<120;i++){const name=availableUsername(base,taken);assert.ok(name.length<=10);assert.equal(name.split('-').length,2);assert.ok(!taken.has(name));taken.add(name);}assert.equal(availableUsername('d-kamdem',new Set(['d-kamdem'])),'d-kamdem2');});

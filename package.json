@@ -1,0 +1,25 @@
+{
+  "name": "apes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
+    "build": "npm run build --workspace frontend",
+    "start": "npm run start --workspace backend",
+    "test": "npm run test --workspace backend",
+    "test:sql": "npm run test:sql --workspace backend",
+    "db:check": "npm run db:check --workspace backend",
+    "db:migrate": "npm run db:migrate --workspace backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

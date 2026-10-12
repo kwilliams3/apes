@@ -1,0 +1,11 @@
+SET XACT_ABORT ON;
+IF OBJECT_ID('dbo.apes_payoffs','U') IS NULL
+ CREATE TABLE dbo.apes_payoffs (
+ id INT IDENTITY(1,1) PRIMARY KEY,
+ request_key UNIQUEIDENTIFIER NOT NULL UNIQUE,
+ loan_id INT NOT NULL REFERENCES dbo.prets(IDP),
+ amount DECIMAL(18,2) NOT NULL,
+ recorded_by INT NOT NULL REFERENCES dbo.users(UID),
+ reason NVARCHAR(500) NOT NULL,
+ recorded_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+ );
