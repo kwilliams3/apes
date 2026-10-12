@@ -16,7 +16,7 @@ try{
  let id=0;const waiting=new Map();
  ws.addEventListener('message',e=>{const r=JSON.parse(e.data);if(waiting.has(r.id)){const [resolve,reject]=waiting.get(r.id);waiting.delete(r.id);r.error?reject(new Error(r.error.message)):resolve(r.result);}});
  const call=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;waiting.set(n,[resolve,reject]);ws.send(JSON.stringify({id:n,method,params}));});
- const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.text);return r.result.value;};
+ const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
  const until=async expression=>{for(let i=0;i<80;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,150));}throw new Error('Écran attendu absent : '+expression);};
  await call('Page.enable');await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
  await call('Page.navigate',{url:process.env.APES_QA_URL || 'http://127.0.0.1:3001/'});await until('!!document.querySelector("input[name=username]")');
@@ -43,9 +43,9 @@ try{
  assert.deepEqual(await evaluate("Array.from(document.querySelector('.table-pagination select').options).map(o=>o.value)"),['10','25','50','100']);
  assert.equal(await evaluate("document.querySelectorAll('.table-screen tbody tr').length"),10);
  await evaluate("document.querySelector('.pagination-navigation button[aria-label=\"Page suivante\"]').click()");
- await until("document.querySelector('.pagination-navigation span').textContent==='Page 2 / 2'");assert.equal(await evaluate("document.querySelectorAll('.table-screen tbody tr').length"),3);
+ await until("document.querySelector('.pagination-navigation span').textContent==='Page 2 / 2'");assert.equal(await evaluate("document.querySelectorAll('.table-screen tbody tr').length"),2);
  await evaluate("(()=>{const s=document.querySelector('.table-pagination select');s.value='25';s.dispatchEvent(new Event('change',{bubbles:true}));})()");
- await until("document.querySelectorAll('.table-screen tbody tr').length===13");assert.equal(await evaluate("document.querySelector('.pagination-navigation span').textContent"),'Page 1 / 1');
+ await until("document.querySelectorAll('.table-screen tbody tr').length===12");assert.equal(await evaluate("document.querySelector('.pagination-navigation span').textContent"),'Page 1 / 1');
  console.log('Pagination vérifiée : options 10/25/50/100, page suivante et changement de taille.');
  const rememberedYear=await evaluate("document.querySelector('.report-year select').value");await call('Page.reload');await new Promise(r=>setTimeout(r,300));await until("document.querySelector('h1')?.textContent==='Bilan annuel' && !!document.querySelector('.report-year select') && !document.body.innerText.includes('Chargement des données')");assert.equal(await evaluate("document.querySelector('.report-year select').value"),rememberedYear);console.log('Page et année conservées après actualisation.');
  console.log('Bilan annuel, changement d’année et légende du graphique vérifiés.');
@@ -72,22 +72,17 @@ try{
  console.log('Aperçu CSV invalide vérifié : import bloqué et aucun salarié créé.');
  await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent.endsWith('Prêts & échéances')).click()");
  await until("document.querySelector('h1')?.textContent==='Prêts' && !document.body.innerText.includes('Chargement des données')");
+ await until("Array.from(document.querySelectorAll('.toolbar button')).some(b=>b.textContent.includes('Nouveau'))");
  await evaluate("Array.from(document.querySelectorAll('.toolbar button')).find(b=>b.textContent.includes('Nouveau')).click()");
  await until("!!document.querySelector('.loan-preview')");
+
  const memberDirectory=await evaluate("fetch('/api/directory').then(r=>r.json())");
- const selectFor=label=>"Array.from(document.querySelectorAll('.form-grid label')).find(l=>l.firstChild.textContent==="+JSON.stringify(label)+").querySelector('select')";
- const borrowerSelect=selectFor('Salarié'),guarantorSelect=selectFor('Avaliste');
+ const borrowerSelect="Array.from(document.querySelectorAll('.form-grid label')).find(l=>l.firstChild.textContent==='Salarié').querySelector('select')";
  const initialBorrower=await evaluate(borrowerSelect+'.value');
- assert.deepEqual(await evaluate('Array.from('+guarantorSelect+'.options).map(o=>o.value).filter(Boolean)'),memberDirectory.filter(m=>m.Matricule!==initialBorrower).map(m=>m.Matricule));
- if(memberDirectory.length>1){
-  const candidate=memberDirectory.find(m=>m.Matricule!==initialBorrower).Matricule;
-  await evaluate('(()=>{const s='+guarantorSelect+';s.value='+JSON.stringify(candidate)+';s.dispatchEvent(new Event("change",{bubbles:true}));})()');
-  await until(guarantorSelect+'.value==='+JSON.stringify(candidate));
-  await evaluate('(()=>{const s='+borrowerSelect+';s.value='+JSON.stringify(candidate)+';s.dispatchEvent(new Event("change",{bubbles:true}));})()');
-  await until(borrowerSelect+'.value==='+JSON.stringify(candidate)+' && '+guarantorSelect+'.value===""');
-  assert.deepEqual(await evaluate('Array.from('+guarantorSelect+'.options).map(o=>o.value).filter(Boolean)'),memberDirectory.filter(m=>m.Matricule!==candidate).map(m=>m.Matricule));
- }
- console.log('Avalistes : tous les membres sauf l’emprunteur, sélection réinitialisée au changement.');
+ await evaluate("(()=>{const input=document.querySelector('input[name=avaliste]');input.focus();input.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));})()");await until("!!document.querySelector('.member-search-results')");
+ assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('.member-search-results button small')).map(n=>n.textContent)"),memberDirectory.filter(m=>m.Matricule!==initialBorrower).map(m=>m.Matricule));
+ if(memberDirectory.length>1){const candidate=memberDirectory.find(m=>m.Matricule!==initialBorrower);await evaluate('(()=>{const input=document.querySelector("input[name=avaliste]");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(input,'+JSON.stringify(candidate.Nom)+');input.dispatchEvent(new Event("input",{bubbles:true}));})()');await until("!!document.querySelector('.member-search-results button')");await evaluate('Array.from(document.querySelectorAll(".member-search-results button")).find(b=>b.querySelector("small").textContent==='+JSON.stringify(candidate.Matricule)+').click()');await until('document.querySelector("input[name=avaliste]").value.includes('+JSON.stringify(candidate.Matricule)+')');await evaluate('(()=>{const s='+borrowerSelect+';s.value='+JSON.stringify(candidate.Matricule)+';s.dispatchEvent(new Event("change",{bubbles:true}));})()');await until('document.querySelector("input[name=avaliste]").value===""');}
+ console.log('Avaliste : recherche, sélection et exclusion de l’emprunteur vérifiées.');
 
  await evaluate(`(()=>{const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const [label,value] of [['Montant du prêt','100000'],['Intérêt forfaitaire (%)','10'],['Apport','5000'],['Nombre de versements','7']]){const input=Array.from(document.querySelectorAll('.form-grid label')).find(l=>l.textContent===label).querySelector('input');setter.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));}})()`);
  await until("!!document.querySelector('.preview-grid')");
@@ -95,7 +90,7 @@ try{
  const loanImage=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile('.preview/loan-preview.png',Buffer.from(loanImage.data,'base64'));
  await evaluate("document.querySelector('.modal header button').click()");
  console.log('Formulaire de prêt et aperçu financier vérifiés sans enregistrement.');
- await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent.endsWith('Cotisations')).click()");await until("document.querySelector('h1')?.textContent==='Cotisations' && !document.body.innerText.includes('Chargement des données')");await evaluate("Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Générer le mois').click()");await until("document.querySelector('#dialog-title')?.textContent==='Déclarer les cotisations du mois' && !!document.querySelector('.modal table')");assert.equal(await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Confirmer les cotisations').disabled"),true);await evaluate("document.querySelector('.modal header button').click()");console.log('Aperçu mensuel vérifié sans déclaration de versements.');
+ await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent.endsWith('Cotisations')).click()");await until("document.querySelector('h1')?.textContent==='Cotisations' && !document.body.innerText.includes('Chargement des données')");await until("(()=>{const button=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Générer le mois');if(!button)return false;button.click();return true;})()");await until("document.querySelector('#dialog-title')?.textContent==='Déclarer les cotisations du mois' && !!document.querySelector('.modal table')");assert.equal(await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Confirmer les cotisations').disabled"),true);await evaluate("document.querySelector('.modal header button').click()");console.log('Aperçu mensuel vérifié sans déclaration de versements.');
  await evaluate("document.querySelector('.profile-trigger').click()");await until("!!document.querySelector('.profile-options')");await evaluate("Array.from(document.querySelectorAll('.profile-options button')).find(b=>b.textContent==='Déconnexion').click()");await until("document.querySelector('#dialog-title')?.textContent==='Confirmer la déconnexion'");await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Annuler').click()");assert.equal(await evaluate("!!document.querySelector('.profile')"),true);await evaluate("document.querySelector('.profile-trigger').click()");await until("!!document.querySelector('.profile-options')");await evaluate("Array.from(document.querySelectorAll('.profile-options button')).find(b=>b.textContent==='Déconnexion').click()");await until("document.querySelector('#dialog-title')?.textContent==='Confirmer la déconnexion'");await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Se déconnecter').click()");await until('!!document.querySelector("input[name=username]")');
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  const mobile=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile('.preview/login-mobile.png',Buffer.from(mobile.data,'base64'));

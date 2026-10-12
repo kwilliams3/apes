@@ -59,7 +59,7 @@
 .login-story .login-message h1{font-size:clamp(40px,4.2vw,64px);line-height:1.12;letter-spacing:-2.5px;margin:22px 0}
 .login-message h1 em{font-style:normal;color:#ffe092}.login-message>p:last-child{font-size:15px;color:#c5e7d8;max-width:360px;line-height:1.8}
 .login-emblem{position:absolute;right:30px;top:42%;width:200px;height:200px;opacity:.85;pointer-events:none;transform:rotate(-7deg)}
-.login-emblem>img{position:absolute;width:115px;height:115px;left:42px;top:42px;filter:drop-shadow(0 12px 20px #002e3b60)}
+.login-emblem>img{position:absolute;width:220px;height:220px;left:-10px;top:-10px;filter:drop-shadow(0 12px 20px #002e3b60)}
 .emblem-orbit{position:absolute;inset:0;border:1px solid #a8e8cf40;border-radius:50%}.orbit-two{inset:20px;border-style:dashed;transform:rotate(25deg)}
 .emblem-dot{position:absolute;width:11px;height:11px;border-radius:50%;background:#ffe092}.dot-one{left:16px;top:40px}.dot-two{right:0;top:113px;background:#67dcad}.dot-three{left:74px;bottom:0;width:7px;height:7px}
 .login-benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:auto;padding-top:64px;position:relative;z-index:1}
@@ -77,7 +77,7 @@
 .login-help{text-align:center;color:#647b6d;font-size:11px;line-height:1.9;margin:25px 0}.login-help strong{color:#335b48;font-weight:600}
 .login-form-footer{text-align:center;border-top:1px solid #e7eee7;padding-top:23px;color:#647b6d;font-size:10px}.login-form-footer .status-dot{background:#10a578}
 @media(min-width:1500px){.login-story{padding:60px 85px}.login-form-wrap{padding:48px 44px;width:470px}.login-emblem{right:65px}}
-@media(max-width:1150px){.login-story{padding:35px}.login-emblem{width:145px;height:145px;right:12px;top:49%;opacity:.5}.login-emblem>img{width:85px;height:85px;left:30px;top:30px}.login-panel{padding:35px}.login-form-wrap{padding:30px 25px}.login-benefits{gap:8px}.login-benefits>div{padding:14px 10px}}
+@media(max-width:1150px){.login-story{padding:35px}.login-emblem{width:145px;height:145px;right:12px;top:49%;opacity:.5}.login-emblem>img{width:155px;height:155px;left:-5px;top:-5px}.login-panel{padding:35px}.login-form-wrap{padding:30px 25px}.login-benefits{gap:8px}.login-benefits>div{padding:14px 10px}}
 @media(max-width:760px){.login-layout{grid-template-columns:1fr}.login-story{min-height:0;padding:24px 26px;background:linear-gradient(120deg,#086b56,#064d42)}.login-story .brand{margin:0;font-size:25px}.login-message,.login-emblem,.login-benefits,.login-story .login-signature{display:none}.login-panel{padding:28px 18px 40px;min-height:calc(100dvh - 104px)}.login-form-wrap{padding:30px 24px;border-radius:20px}.login-panel h2{font-size:29px}.login-story .brand-logo{width:48px;height:48px}}
 
 .password-toggle{display:grid;place-items:center;width:40px;height:40px;padding:9px}.password-toggle svg{width:20px;height:20px}.login-input input[name=password]{padding-right:52px}

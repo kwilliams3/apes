@@ -6,8 +6,8 @@ import { spawn } from 'node:child_process';
 import net from 'node:net';
 import ExcelJS from 'exceljs';
 import crypto from 'node:crypto';
-import { pool, sql } from '../server/db.js';
-import { hashPassword } from '../server/domain.js';
+import { pool, sql } from '../dist/config/db.js';
+import { hashPassword } from '../dist/utils/domain.js';
 // Test isolé : clone le schéma dans une base temporaire, jamais les données.
 // Nécessite le droit CREATE DATABASE et ne touche pas aux données APES.
 test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, async()=>{
@@ -29,7 +29,7 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   for(const name of ['001-modern.sql','002-repayments.sql','003-contributions.sql','004-payoffs.sql','005-permissions.sql','006-onboarding.sql'])await scratch.request().query(await fs.readFile(new URL('../sql/'+name,import.meta.url),'utf8'));
   const password='Integration@2026!pass';const hash=await hashPassword(password);
   await scratch.request().input('hash',hash).query("INSERT dbo.roles(name) VALUES('admin');INSERT dbo.users(username,first_name,last_name,password) VALUES('integration_admin','Test','Admin',@hash);INSERT dbo.users_roles(UID,RID) SELECT u.UID,r.RID FROM dbo.users u CROSS JOIN dbo.roles r WHERE u.username='integration_admin' AND r.name='admin';");
-  let output='';child=spawn(process.execPath,['server/index.js'],{cwd:process.cwd(),env:{...process.env,DB_DATABASE:name,PORT:String(port)}});child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
+  let output='';child=spawn(process.execPath,['dist/index.js'],{cwd:process.cwd(),env:{...process.env,DB_DATABASE:name,PORT:String(port)}});child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
   for(let i=0;i<50;i++){try{const r=await fetch(`http://127.0.0.1:${port}/api/health`);if(r.ok)break;}catch{}await new Promise(r=>setTimeout(r,150));}
   assert.equal(child.exitCode,null,output);
   let cookie='';
@@ -52,6 +52,7 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   await call('/loans/preview',{montant:100,taux:0,montant_apport:101,duree:2,periodicite:'1',datepecheance:year+'-01-15'},'POST',400);
   const loan=await call('/loans',{matricule_sal:'T001',montant:100000,taux:10,duree:3,periodicite:'1',montant_apport:1000,avaliste:'T002',datepecheance:`${year}-01-31`},'POST',201);
   assert.equal((await call(`/loans/${loan.IDP}/payments`)).length,0);
+  const firstPeriod=await call('/contributions/period');assert.equal(firstPeriod.month,1);assert.equal(firstPeriod.year,year);
   const roles=await call('/roles');const memberRole=roles.find(r=>r.name==='membre');
   await call('/users',{username:'integration_member',first_name:'Membre',last_name:'Test',email:'',Matricule:'T001',password,RID:memberRole.RID},'POST',201);
   await call('/auth/login',{username:'integration_member',password});const memberCookie=cookie;
@@ -113,6 +114,7 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   await call('/repayments/'+lastPayment.id+'/reverse',{reason:'Mois déjà clôturé.'},'POST',409);
 
   await call('/closures',{type:'contributions',annee:year,mois:1});
+  assert.deepEqual(await call('/contributions/period'),{year,month:2,closureKey:year+'-1'});
   await call('/closures',{type:'contributions',annee:year,mois:1},'POST',409);
   await call('/contributions/'+contribution.id,{mois:1,montant:9000,Dimunition:100,edit_version:1,reason:'Correction.'},'PUT',409);
   const charge=await call('/charges',{type_charge:'Test',designation:'Charge test',montant:100},'POST',201);
@@ -232,22 +234,33 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
 
   await call('/closures',{type:'contributions',annee:year,mois:6});
   assert.deepEqual(await call('/contributions/period'),{year,month:7,closureKey:year+'-6'});
-  const calculatedRows=await call('/contributions?year='+year);const expectedCalculated=calculatedRows.reduce((sum,r)=>sum+Number(r.montant)*6,0);assert.ok(calculatedRows.every(r=>r.closedTotal===Number(r.montant)*6));
+  const calculatedRows=await call('/contributions?year='+year);const expectedCalculated=calculatedRows.reduce((sum,r)=>sum+r.closedTotal,0);assert.ok(calculatedRows.every(r=>r.closedTotal===['Janvier','Fevrier','Mars','Avril','Mai','Juin'].reduce((sum,m)=>sum+Number(r[m]||0),0)));
   const calculatedReport=await call('/reports?year='+year);assert.equal(calculatedReport.totals.closedContributions,expectedCalculated);assert.ok(calculatedReport.rows.slice(6).every(r=>r.closedContributions===0));
   assert.equal((await call('/dashboard')).closedContributions,expectedCalculated);
-  const calculatedStatement=await call(dossierPath);assert.ok(calculatedStatement.contributions.filter(r=>r.annee===year).every(r=>r.closedTotal===Number(r.montant)*6));
-  const monthlySummary=await call('/contributions/'+filled.id+'/summary');assert.equal(monthlySummary.rows.length,6);assert.ok(monthlySummary.rows.every(r=>r.amount===Number(filled.montant)));assert.equal(monthlySummary.total,Number(filled.montant)*6);
+  const calculatedStatement=await call(dossierPath);assert.ok(calculatedStatement.contributions.filter(r=>r.annee===year).every(r=>r.closedTotal===['Janvier','Fevrier','Mars','Avril','Mai','Juin'].reduce((sum,m)=>sum+Number(r[m]||0),0)));
+  const monthlySummary=await call('/contributions/'+filled.id+'/summary');assert.equal(monthlySummary.rows.length,6);const actualSummaryRow=calculatedRows.find(r=>r.id===filled.id);assert.equal(monthlySummary.total,actualSummaryRow.closedTotal);assert.ok(monthlySummary.rows.every(r=>r.amount===Number(actualSummaryRow[r.name]||0)));
 
   await scratch.request().input('year',year).query('INSERT dbo.cloture_cot(annee,mois,solde,statut,created_user,created_at,updated_at) VALUES(@year,12,0,2,1,GETDATE(),GETDATE())');
   assert.deepEqual(await call('/contributions/period'),{year:year+1,month:1,closureKey:year+'-12'});
   await scratch.request().input('year',year).query('DELETE dbo.cloture_cot WHERE annee=@year AND mois=12');
-  const filledAtClosure=(await call('/contributions?year='+year)).find(r=>r.id===filled.id);assert.equal(Number(filledAtClosure.Mai),Number(filledAtClosure.montant));assert.equal(Number(filledAtClosure.Fevrier),Number(filled.Fevrier)||Number(filled.montant));assert.equal(Number((await call('/contributions?year='+year)).find(r=>r.id===contribution.id).Fevrier),1234);assert.ok((await call('/contributions/'+filled.id+'/history')).some(h=>h.action==='closure_fill'));
+  const filledAtClosure=(await call('/contributions?year='+year)).find(r=>r.id===filled.id);assert.equal(Number(filledAtClosure.Mai),Number(filled.Mai));assert.equal(Number(filledAtClosure.Fevrier),Number(filled.Fevrier));assert.equal(Number((await call('/contributions?year='+year)).find(r=>r.id===contribution.id).Fevrier),1234);
   const lockedContribution=(await call('/contributions?year='+year)).find(r=>r.id===filled.id);
   await call('/contributions/'+lockedContribution.id,{mois:5,montant:1,Dimunition:lockedContribution.Dimunition,edit_version:lockedContribution.edit_version,reason:'Mois antérieur bloqué.'},'PUT',409);
   await call('/contributions/month/preview?annee='+year+'&mois=5',undefined,'GET',409);
   await call('/contributions/month/apply',{annee:year,mois:5,reason:'Mois antérieur bloqué.'},'POST',409);
   await call('/contributions/month/preview?annee='+(year-1)+'&mois=12',undefined,'GET',409);
   await call('/contributions/'+lockedContribution.id,{mois:7,montant:1,Dimunition:lockedContribution.Dimunition,edit_version:lockedContribution.edit_version,reason:'Mois suivant autorisé.'},'PUT');
+
+  const departure=await call('/employees',{Matricule:'DEPART001',Nom:'Depart',Prenom:'Test',MontantCot:3000,SoldeExo:0,IDREG:region.idregion},'POST',201);
+  await call('/contributions/year',{year:year+1});
+  const departureRow=(await call('/contributions?year='+year)).find(r=>r.Matricule==='DEPART001');
+  await call('/contributions/'+departureRow.id,{mois:7,montant:1500,Dimunition:0,edit_version:departureRow.edit_version,reason:'Dernier versement partiel avant départ.'},'PUT');
+  await call('/contributions/'+departureRow.id+'/stop',{});
+  assert.equal((await call('/contributions?year='+(year+1))).find(r=>r.Matricule==='DEPART001').statut,2);
+  await call('/closures',{type:'contributions',annee:year,mois:7});
+  const csvAfterClosure=(await call('/contributions?year='+year)).find(r=>r.Matricule==='CSV001');assert.equal(csvAfterClosure.Juillet,Number(csvAfterClosure.montant));assert.equal(csvAfterClosure.Mai,0);assert.ok((await call('/contributions/'+csvAfterClosure.id+'/history')).some(h=>h.action==='closure_fill'&&h.month_number===7));
+  const stoppedSummary=await call('/contributions/'+departureRow.id+'/summary');assert.equal(stoppedSummary.total,1500);assert.equal(stoppedSummary.rows.find(r=>r.name==='Juillet').amount,1500);
+  const unchanged=(await call('/contributions?year='+year)).find(r=>r.id===departureRow.id);assert.equal(unchanged.Aout,0);assert.equal(unchanged.closedTotal,1500);assert.equal(unchanged.SoldeArret,1500);
   if(process.env.APES_BROWSER_TEST==='true'){
 
    const browser=spawn(process.execPath,['scripts/browser-check.js'],{cwd:fileURLToPath(new URL('../../',import.meta.url)),env:{...process.env,APES_QA_URL:'http://127.0.0.1:'+port+'/',APES_QA_USERNAME:'integration_admin',APES_QA_PASSWORD:password,APES_QA_FIRST_LOGIN_USERNAME:duplicateName.account.username},windowsHide:true});let browserOutput='';browser.stdout.on('data',b=>browserOutput+=b);browser.stderr.on('data',b=>browserOutput+=b);const browserExit=await new Promise(resolve=>browser.once('exit',resolve));assert.equal(browserExit,0,browserOutput);console.log(browserOutput);

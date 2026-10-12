@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch server/index.js",
-    "start": "node server/index.js",
-    "test": "node --test test/*.test.js",
-    "test:sql": "node --test test/integration.sql.js",
-    "db:check": "node scripts/check-db.js",
-    "db:migrate": "node scripts/migrate.js"
+    "dev": "npm run build && concurrently -k -n TS,API \"tsc --watch --preserveWatchOutput\" \"node --watch dist/index.js\"",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "npm run build && node dist/index.js",
+    "test": "npm run build && node --test test/*.test.js",
+    "test:sql": "npm run build && node --test test/integration.sql.js",
+    "db:check": "npm run build && node dist/scripts/check-db.js",
+    "db:migrate": "npm run build && node dist/scripts/migrate.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
@@ -23,5 +25,13 @@
     "multer": "^2.0.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
   }
 }

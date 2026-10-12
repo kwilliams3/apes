@@ -6,6 +6,36 @@ Emplacement : C:\xampp8.2\htdocs\apes-react
 - backend/ : API Node.js, .env privé, migrations SQL et tests.
 - package.json : commandes communes avec les workspaces npm.
 
+## Structure du projet
+
+```text
+frontend/src/
+├── pages/         Login.tsx, Dashboard.tsx, Salaries.tsx, Cotisations.tsx, Prets.tsx…
+├── components/    Sidebar, Header, Table, DialogHost, formulaires et graphiques
+├── services/      API et exports CSV
+├── config/        Modules, navigation et droits
+├── types/         Types partagés (utilisateur, tableaux et connexion)
+├── utils/         Formats et périodes de travail
+├── App.tsx        État de session et orchestration des pages
+└── main.tsx       Point d’entrée React
+
+backend/src/
+├── routes/        Routes HTTP par module
+├── controllers/   Traitement des requêtes par module
+├── services/      Cotisations, comptes, prêts, bilans, permissions…
+├── config/        Connexion SQL Server
+├── middleware/    Origines autorisées
+├── scripts/       Vérification SQL et migrations
+├── types/         Extensions des types Express
+├── utils/         Règles métier et mots de passe
+├── app.ts         Configuration Express et authentification
+└── index.ts       Point d’entrée Node
+```
+
+Les pages de listes partagent ModuleTable pour conserver les mêmes actions et la pagination. Le backend ne contient pas de pages React : son équivalent est routes/controllers/services. Les sources sont en TypeScript ; les résultats compilés dans frontend/dist et backend/dist sont exclus de Git. Les types des données SQL et de certains formulaires restent progressivement à préciser ; les interfaces communes sont dans types/.
+
+npm run typecheck vérifie les deux projets. npm run build vérifie et compile le frontend et le backend. npm run dev démarre Vite, la compilation TypeScript du backend en surveillance et Node. Après cette réorganisation, arrêter l’ancien npm run dev puis le relancer. Les relais backend/server/index.js et backend/scripts/*.js permettent les anciennes commandes après compilation ; les implémentations se trouvent dans backend/src.
+
 Depuis cette racine :
 
 ```powershell
@@ -328,6 +358,6 @@ Connexion : le champ « Identifiant ou matricule » accepte le nom d’utilisate
 
 Clôtures : un mois clôturé et tous les mois antérieurs (y compris les années précédentes) sont bloqués dans le module concerné. Le contrôle couvre les modifications et générations de cotisations, les nouvelles adhésions avec versement initial, les versements, annulations et soldes anticipés des prêts. Les mois suivants restent disponibles.
 
-Les cotisations calculées sur les mois clôturés sont présentées dans Cotisations (CSV/Excel inclus), Dossier membre et impression, Tableau de bord, Bilan annuel et export Excel, et Clôtures. Le calcul utilise la cotisation mensuelle de la ligne annuelle de janvier au dernier mois clôturé ; les années antérieures à une clôture ultérieure comptent douze mois. Ce récapitulatif est distinct des versements réellement enregistrés : il ne modifie ni les écritures ni les soldes financiers.
+Les récapitulatifs des mois clôturés additionnent uniquement les versements réellement enregistrés, dans tous les modules et exports. Ils ne multiplient plus la cotisation mensuelle par le nombre de mois : un membre arrêté conserve son total acquis. « Arrêter les cotisations » arrête aussi ses fiches annuelles futures déjà ouvertes ; les prochaines clôtures ne génèrent aucun versement pour ces fiches. Le dernier versement peut être saisi manuellement, y compris partiellement, avant l’arrêt.
 
-La clôture des cotisations enregistre automatiquement les cotisations manquantes des lignes annuelles actives jusqu’au mois clôturé (années précédentes incluses). Les montants non nuls déjà saisis et les mois ayant une modification historisée sont conservés. Chaque ajout porte l’action closure_fill dans l’historique, recalcule le solde annuel et incrémente la version. L’ensemble est transactionnel et idempotent. Le rattrapage des clôtures existantes a été effectué jusqu’à octobre 2026.
+La clôture des cotisations enregistre automatiquement les cotisations manquantes des lignes annuelles actives uniquement pour le mois et l’année sélectionnés. Les montants non nuls déjà saisis et les mois ayant une modification historisée sont conservés. Chaque ajout porte l’action closure_fill dans l’historique, recalcule le solde annuel et incrémente la version. L’ensemble est transactionnel et idempotent. Le rattrapage des clôtures existantes a été effectué jusqu’à octobre 2026.

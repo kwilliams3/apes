@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolvePermissions,can,canReadAll,routePermission,permissionModules} from '../server/permissions.js';
+import {resolvePermissions,can,canReadAll,routePermission,permissionModules} from '../dist/services/permissions.js';
 test('role grants combine and user denial takes priority',()=>{const p=resolvePermissions([{RID:1,name:'membre'},{RID:2,name:'president'}],{1:{charges:{create:true}},2:{charges:{create:false}}},{charges:{create:false}});assert.equal(p.charges.create,false);assert.equal(p.loans.read_all,true);assert.equal(p.employees.read_all,false);});
 test('inherit defaults and remove user override',()=>{const roles=[{RID:1,name:'membre'}],custom={1:{charges:{read:true,create:true}}};assert.equal(resolvePermissions(roles,custom).charges.create,true);assert.equal(resolvePermissions(roles,custom,{charges:{read:false}}).charges.read,false);assert.equal(resolvePermissions(roles,custom).charges.read,true);});
 test('read all requires read; admin retains access',()=>{assert.equal(canReadAll({roles:['membre'],permissions:{employees:{read_all:true,read:false}}},'employees'),false);assert.equal(can({roles:['admin']},'users','create'),true);assert.equal(can({roles:[],permissions:{}},'users','create'),false);});

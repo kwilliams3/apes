@@ -1,6 +1,6 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
-import { schedule, addMonths, balance, legacyHash, hashPassword, verifyPassword, isAdmin, hasRole } from '../server/domain.js';
+import { schedule, addMonths, balance, legacyHash, hashPassword, verifyPassword, isAdmin, hasRole } from '../dist/utils/domain.js';
 test('échéancier : intérêt forfaitaire, apport et somme exacte des versements',()=>{
  const p=schedule({montant:100000,taux:10,montant_apport:5000,duree:7,periodicite:'1',datepecheance:'2026-01-31'});
  assert.equal(p.length,7);assert.equal(Math.round(p.reduce((s,r)=>s+r.montant_remb,0)*100),10500000);assert.equal(p.at(-1).solde,0);assert.equal(p[1].date_echeance,'2026-02-28');assert.equal(p[2].date_echeance,'2026-03-31');

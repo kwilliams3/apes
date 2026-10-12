@@ -16,3 +16,7 @@ backend/.env
 *.key
 *.pfx
 *.bak
+
+# Compiled backend and refactoring workspace
+backend/dist/
+.refactor/

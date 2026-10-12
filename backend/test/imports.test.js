@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { readImport, importHeaders } from '../server/imports.js';
+import { readImport, importHeaders } from '../dist/services/imports.js';
 const csv=(content,name='import.csv')=>({originalname:name,buffer:Buffer.from(content,'utf8')});
 test('CSV UTF-8 : matricules avec zéros et décimales françaises',async()=>{
  const rows=await readImport(csv('\uFEFF'+importHeaders.join(';')+'\r\n0007;M;Élodie;Test;10 000,50;500,25;Centre;1;Siège\r\n'));
