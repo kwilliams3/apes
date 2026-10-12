@@ -39,7 +39,7 @@ export const employeeSchema = z.object({
     .max(12)
     .default(Number(dateToday().slice(5, 7))),
 });
-export async function insertEmployee(tx: any, data: any, user: any) {
+export async function insertEmployee(tx: any, data: any, user: any, recordInitialContribution = false) {
   const region = (
     await query(
       "SELECT * FROM dbo.region WHERE idregion=@id",
@@ -60,7 +60,7 @@ export async function insertEmployee(tx: any, data: any, user: any) {
     )
   ).recordset[0];
   if (
-    data.nouveau &&
+    (data.nouveau || recordInitialContribution) &&
     data.MontantCot > 0 &&
     (
       await query(
@@ -71,7 +71,7 @@ export async function insertEmployee(tx: any, data: any, user: any) {
     ).recordset.length
   )
     throw new AppError("Le mois de début est bloqué par une clôture.", 409);
-  const first = data.nouveau ? data.MontantCot : 0,
+  const first = data.nouveau || recordInitialContribution ? data.MontantCot : 0,
     report = data.nouveau ? 0 : data.SoldeExo,
     fee = data.nouveau ? 6500 : 0;
   await query(

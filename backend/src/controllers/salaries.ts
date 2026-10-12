@@ -125,7 +125,7 @@ export const postSalariesHandler8 = async (req: any, res: any) => {
         if (account.created)
           accounts.push({ ...account, Matricule: d.Matricule });
       } else {
-        const row = await insertEmployee(tx, entry.data, req.user);
+        const row = await insertEmployee(tx, { ...entry.data, mois: 1 }, req.user, true);
         if (row.account.created)
           accounts.push({ ...row.account, Matricule: row.Matricule });
       }

@@ -68,7 +68,6 @@ export function MemberStatement({ data }: any) {
           ["annee", "Année"],
           ["report", "Report", money],
           ["paid", "Versements déclarés", money],
-          ["closedTotal", "Cotisations enregistrées · mois clôturés", money],
           ["DroitAdhesion", "Adhésion", money],
           ["Dimunition", "Réduction", money],
           ["SoldeAnnuel", "Solde", money],
@@ -110,7 +109,6 @@ export function MemberStatement({ data }: any) {
         columns={[
           ["month", "Mois"],
           ["amount", "Versements déclarés", money],
-          ["calculated", "Cotisations enregistrées · mois clôturés", money],
         ]}
       />
       <h3>Prêts</h3>

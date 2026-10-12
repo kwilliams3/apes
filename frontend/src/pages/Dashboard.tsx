@@ -149,11 +149,6 @@ export function Dashboard({ data, user, changePage, refresh }: any) {
             columns={[
               ["month", "Mois"],
               ["contributions", "Cotisations déclarées", money],
-              [
-                "closedContributions",
-                "Cotisations enregistrées · mois clôturés",
-                money,
-              ],
               ["scheduled", "Échéances prévues", money],
               ["received", "Remboursements datés", money],
               ...((user.isAdmin

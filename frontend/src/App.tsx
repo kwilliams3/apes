@@ -350,20 +350,17 @@ export function App() {
           ["DroitAdhesion", "Adhésion", money],
           ["Dimunition", "Réduction", money],
           ["SoldeArret", "Solde d’arrêt", money],
-          ["closedTotal", "Cotisations enregistrées · mois clôturés", money],
           ["SoldeAnnuel", "Solde", money],
         ]
       : page === "contributions"
         ? [
             ["Matricule", "Matricule"],
             ["Salarie", "Salarié"],
-            ["montant", "Cotisation prévue", money],
             [
-              months[contributionMonth - 1],
-              "Versé · " + months[contributionMonth - 1],
+              "montant",
+              "À cotiser · " + months[contributionMonth - 1],
               money,
             ],
-            ["closedTotal", "Cotisations enregistrées · mois clôturés", money],
             ["SoldeAnnuel", "Solde annuel", money],
             ["statut", "État", (v) => (v === 1 ? "Actif" : "Arrêté")],
           ]

@@ -17,7 +17,6 @@ export function FinancialReport({
   const cols: TableColumn[] = [
     ["month", "Mois"],
     ["contributions", "Cotisations", money],
-    ["closedContributions", "Cotisations enregistrées · mois clôturés", money],
     ["scheduled", "Échéances prévues", money],
     ["received", "Remboursements datés", money],
     ["charges", "Sorties", money],
