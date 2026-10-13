@@ -15,6 +15,7 @@ import { router as router11 } from "./remboursements.js";
 import { router as router12 } from "./bilan.js";
 import { router as router13 } from "./retards.js";
 import { router as router14 } from "./permissions.js";
+import { router as withdrawalRouter } from "./withdrawals.js";
 export const router = express.Router();
 router.use(authorize);
 router.use(router0);
@@ -32,3 +33,5 @@ router.use(router11);
 router.use(router12);
 router.use(router13);
 router.use(router14);
+
+router.use(withdrawalRouter);

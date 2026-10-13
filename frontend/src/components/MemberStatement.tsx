@@ -70,6 +70,7 @@ export function MemberStatement({ data }: any) {
           ["paid", "Versements déclarés", money],
           ["DroitAdhesion", "Adhésion", money],
           ["Dimunition", "Réduction", money],
+          ["Retraits", "Retraits versés", money],
           ["SoldeAnnuel", "Solde", money],
           ["statut", "État", (v) => (v === 1 ? "Actif" : "Arrêté")],
         ]}

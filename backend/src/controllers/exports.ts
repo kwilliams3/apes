@@ -3,6 +3,7 @@ import {
   closedContribution,
 } from "./../services/contribution-summary.js";
 
+import { listWithdrawals } from "../services/withdrawals.js";
 import { canReadAll } from "./../services/permissions.js";
 
 import { z } from "zod";
@@ -14,6 +15,48 @@ import { query } from "./../config/db.js";
 import { AppError, money, balance, dateToday } from "./../utils/domain.js";
 
 export const getExportsHandler33 = async (req: any, res: any) => {
+  if (req.params.module === "withdrawals") {
+    const records = await listWithdrawals(req.user);
+    const book = new ExcelJS.Workbook(),
+      sheet = book.addWorksheet("Retraits");
+    sheet.columns = [
+      { header: "Date de demande", key: "requested_at", width: 22 },
+      { header: "Matricule", key: "Matricule", width: 16 },
+      { header: "Salarié", key: "Salarie", width: 30 },
+      { header: "Année", key: "annee", width: 12 },
+      { header: "Montant", key: "amount", width: 18 },
+      { header: "Motif", key: "reason", width: 35 },
+      { header: "État", key: "status", width: 18 },
+      { header: "Validé par", key: "validated_by", width: 20 },
+      { header: "Date de versement", key: "paid_at", width: 22 },
+      { header: "Motif du refus", key: "rejection_reason", width: 35 },
+    ];
+    for (const row of records)
+      sheet.addRow({
+        ...row,
+        status:
+          {
+            pending: "En attente",
+            approved: "Validé",
+            paid: "Versé",
+            rejected: "Refusé",
+          }[row.status] || row.status,
+      });
+    sheet.getRow(1).font = { bold: true };
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: 10 },
+    };
+    res
+      .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .set(
+        "Content-Disposition",
+        'attachment; filename="apes-withdrawals.xlsx"',
+      )
+      .send(Buffer.from(await book.xlsx.writeBuffer()));
+    return;
+  }
   const definitions = {
     repayments: {
       table: "apes_repayments",

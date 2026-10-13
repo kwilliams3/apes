@@ -20,7 +20,7 @@ export async function fillClosedContributions(
       prefix +
       "DroitAdhesion,0)-COALESCE(" +
       prefix +
-      "Dimunition,0)";
+      "Dimunition,0)-COALESCE(" + prefix + "Retraits,0)";
     const result = await query(
       `DECLARE @changes TABLE(id INT,amount DECIMAL(18,2),reduction DECIMAL(18,2),before_balance DECIMAL(18,2),after_balance DECIMAL(18,2));
  UPDATE c SET [${field}]=montant,SoldeAnnuel=ROUND(${before("")}+montant,2),edit_version=edit_version+1

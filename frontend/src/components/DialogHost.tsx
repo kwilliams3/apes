@@ -43,12 +43,14 @@ export function DialogHost({
           "modal " +
           (dialog.importPreview || dialog.statement || dialog.monthlyBatch
             ? "import-modal"
-            : "")
+            : "") +
+          (dialog.details && Number(dialog.details.statut) === 2 ? " stopped-payments-modal" : "")
         }
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
       >
+        {dialog.details && Number(dialog.details.statut) === 2 && <span className="stopped-payments-ribbon">Arrêté</span>}
         <header>
           <h2 id="dialog-title">{dialog.title}</h2>
           <button
@@ -211,6 +213,14 @@ export function DialogHost({
                 soldée avec un reçu ; aucune pénalité n’est ajoutée.
               </div>
             )}
+            {dialog.path === "/withdrawals" && (
+              <p>
+                Solde disponible :{" "}
+                <strong>{money(dialog.withdrawalAvailable)}</strong>. Le montant
+                sera déduit uniquement après validation et confirmation du
+                versement.
+              </p>
+            )}
             <div className="form-grid">
               {dialog.fields.map(([k, label, t]) => (
                 <Field
@@ -224,6 +234,17 @@ export function DialogHost({
                           data?.[dialog.values.type] || [],
                           Number(dialog.values.annee),
                         )
+                      : undefined
+                  }
+                  numericMin={
+                    dialog.path === "/withdrawals" && k === "amount"
+                      ? 0.01
+                      : undefined
+                  }
+                  numericMax={
+                    dialog.path === "/withdrawals" && k === "amount"
+                      ? Math.round((dialog.withdrawalAvailable - 0.01) * 100) /
+                        100
                       : undefined
                   }
                   value={dialog.values[k]}

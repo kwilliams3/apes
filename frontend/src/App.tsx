@@ -17,6 +17,7 @@ import { Login } from "./pages/Login";
 import { RequiredPasswordChange } from "./pages/PremierMotDePasse";
 import { modules } from "./config/modules";
 
+import { Retraits } from "./pages/Retraits";
 import { Dashboard } from "./pages/Dashboard";
 import { FinancialReport } from "./pages/BilanAnnuel";
 import { Clotures } from "./pages/Clotures";
@@ -349,6 +350,7 @@ export function App() {
           ...months.map((m) => [m, m, money]),
           ["DroitAdhesion", "Adhésion", money],
           ["Dimunition", "Réduction", money],
+          ["Retraits", "Retraits versés", money],
           ["SoldeArret", "Solde d’arrêt", money],
           ["SoldeAnnuel", "Solde", money],
         ]
@@ -356,11 +358,7 @@ export function App() {
         ? [
             ["Matricule", "Matricule"],
             ["Salarie", "Salarié"],
-            [
-              "montant",
-              "À cotiser · " + months[contributionMonth - 1],
-              money,
-            ],
+            ["montant", "À cotiser · " + months[contributionMonth - 1], money],
             ["SoldeAnnuel", "Solde annuel", money],
             ["statut", "État", (v) => (v === 1 ? "Actif" : "Arrêté")],
           ]
@@ -546,6 +544,11 @@ export function App() {
               user={user}
               changePage={changePage}
               refresh={refresh}
+            />
+          ) : page === "withdrawals" ? (
+            <Retraits
+              {...{ data, user, busy, mutate, refresh, download }}
+              apiError={error}
             />
           ) : page === "reports" ? (
             <FinancialReport

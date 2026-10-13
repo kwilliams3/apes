@@ -14,7 +14,7 @@ import {
   hasRole,
   dateToday,
 } from "./../utils/domain.js";
-import { text, amount, cash, idOf, loanSchema } from "../routes/shared.js";
+import { text, amount, cash, idOf, loanSchema, firstDueDate } from "../routes/shared.js";
 export const getPretsHandler13 = async (req: any, res: any) => {
   const where = canReadAll(req.user, "loans")
     ? ""
@@ -312,9 +312,9 @@ export const postPretsHandler38 = async (req: any, res: any) => {
       montant: cash.refine((n) => n > 0),
       taux: amount.max(100),
       montant_apport: cash,
-      duree: z.coerce.number().int().min(1).max(120),
+      duree: z.coerce.number({ error: "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12." }).int("Le nombre de versements doit \u00eatre un entier compris entre 1 et 12.").min(1, "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12.").max(12, "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12."),
       periodicite: z.enum(["1", "3", "6", "12"]),
-      datepecheance: text(10),
+      datepecheance: firstDueDate,
     })
     .parse(req.body);
   const rows = schedule(data);

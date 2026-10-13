@@ -6,7 +6,7 @@ import multer from "multer";
 
 import { query, audit } from "./../config/db.js";
 
-import { AppError, months, money, dateToday } from "./../utils/domain.js";
+import { AppError, months, money, dateToday, addMonths } from "./../utils/domain.js";
 export const text = (n = 150) => z.string().trim().min(1).max(n);
 export const amount = z.coerce.number().finite().min(0).max(100000000000);
 export const cash = amount.refine(
@@ -95,13 +95,17 @@ export const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 });
+export const firstDueDate = text(10).refine(
+  (value) => value <= addMonths(dateToday(), 2),
+  "La premi\u00e8re \u00e9ch\u00e9ance ne doit pas d\u00e9passer deux mois apr\u00e8s la date de saisie.",
+);
 export const loanSchema = z.object({
   matricule_sal: text(50),
   montant: cash.refine((n) => n > 0),
-  duree: z.coerce.number().int().min(1).max(120),
+  duree: z.coerce.number({ error: "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12." }).int("Le nombre de versements doit \u00eatre un entier compris entre 1 et 12.").min(1, "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12.").max(12, "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12."),
   taux: amount.max(100),
   periodicite: z.enum(["1", "3", "6", "12"]),
-  datepecheance: text(10),
+  datepecheance: firstDueDate,
   montant_apport: cash.default(0),
   avaliste: text(50),
 });

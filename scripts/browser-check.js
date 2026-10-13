@@ -31,6 +31,18 @@ try{
   assert.equal(await evaluate('document.body.innerText.includes("Données indisponibles")'),false,title);
   console.log('Écran vérifié : '+title);
  }
+ await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent.endsWith('Retraits')).click()");
+ await until("document.querySelector('h1')?.textContent==='Retraits' && !!document.querySelector('.table-pagination') && !document.querySelector('.loading-screen')");
+ await evaluate("Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Demander un retrait').click()");
+ await until("!!document.querySelector('form input[type=number]') && document.querySelector('form select').options.length>1");
+ await evaluate("const select=document.querySelector('form select');select.value=select.options[1].value;select.dispatchEvent(new Event('change',{bubbles:true}))");
+ await until("Number(document.querySelector('form input[type=number]').max)>0");
+ assert.equal(await evaluate("!!document.querySelector('[role=dialog] form input[type=number]')"),true);
+ assert.equal(await evaluate("!!document.querySelector('.toolbar input[aria-label=Rechercher]') && !!document.querySelector('.withdrawal-state-filter')"),true);
+ assert.equal(await evaluate("document.querySelector('form input[type=number]').step"),'0.01');
+ assert.equal(await evaluate("document.querySelector('form input[type=number]').min"),'0.01');
+ await evaluate("Array.from(document.querySelectorAll('form button')).find(b=>b.textContent==='Annuler').click()");
+ console.log('Page Retraits et formulaire de demande vérifiés.');
  await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent.endsWith('Bilan annuel')).click()");
  await until("document.querySelector('h1')?.textContent==='Bilan annuel' && !!document.querySelector('.report-year select')");
  const currentYear=await evaluate("document.querySelector('.report-year select').value");

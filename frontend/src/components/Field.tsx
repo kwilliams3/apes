@@ -1,5 +1,5 @@
 import { MemberSearch } from "./MemberSearch";
-import { months } from "./../utils/format";
+import { months, latestFirstDueDate } from "./../utils/format";
 
 export function Field({
   field: [key, label, type],
@@ -11,6 +11,8 @@ export function Field({
   disabled,
   optional,
   allowedMonths,
+  numericMin,
+  numericMax,
 }: any) {
   if (key === "avaliste")
     return (
@@ -101,10 +103,45 @@ export function Field({
           required={!optional}
           disabled={disabled}
           value={value ?? ""}
-          step={type === "number" ? "0.01" : undefined}
-          min={
-            type === "number" ? (key === "MontantCot" ? 3000 : 0) : undefined
+          step={
+            type === "number" ? (key === "duree" ? "1" : "0.01") : undefined
           }
+          min={
+            numericMin ??
+            (type === "number"
+              ? key === "MontantCot"
+                ? 3000
+                : key === "duree"
+                  ? 1
+                  : 0
+              : undefined)
+          }
+          max={
+            numericMax ??
+            (key === "datepecheance"
+              ? latestFirstDueDate()
+              : key === "duree"
+                ? 12
+                : undefined)
+          }
+          onInvalid={(e) => {
+            if (key === "amount" && numericMax !== undefined)
+              e.currentTarget.setCustomValidity(
+                "Le montant doit être positif et strictement inférieur au solde annuel disponible.",
+              );
+            if (key === "duree")
+              e.currentTarget.setCustomValidity(
+                "Le nombre de versements doit \u00eatre un entier compris entre 1 et 12.",
+              );
+            if (
+              key === "datepecheance" &&
+              e.currentTarget.validity.rangeOverflow
+            )
+              e.currentTarget.setCustomValidity(
+                "La premi\u00e8re \u00e9ch\u00e9ance ne doit pas d\u00e9passer deux mois apr\u00e8s la date de saisie.",
+              );
+          }}
+          onInput={(e) => e.currentTarget.setCustomValidity("")}
           minLength={type === "password" && key !== "current" ? 6 : undefined}
           onChange={(e) =>
             onChange(

@@ -18,3 +18,9 @@ test('périodicités textuelles du PHP conservées',()=>{
  assert.equal(schedule({...input,periodicite:'Mensualité'})[1].date_echeance,'2026-02-28');
  assert.equal(schedule({...input,periodicite:'Annuel'})[1].date_echeance,'2027-01-31');
 });
+
+test("premiere echeance limitee a deux mois pour creation et simulation", async()=>{const {firstDueDate}=await import("../dist/routes/shared.js");const {dateToday}=await import("../dist/utils/domain.js");const limit=addMonths(dateToday(),2);assert.equal(firstDueDate.safeParse(limit).success,true);const next=new Date(limit+"T00:00:00Z");next.setUTCDate(next.getUTCDate()+1);assert.equal(firstDueDate.safeParse(next.toISOString().slice(0,10)).success,false);assert.equal(addMonths("2026-12-31",2),"2027-02-28");});
+
+test("nombre de versements limite a douze",()=>{const input={montant:12000,taux:0,duree:12,periodicite:"1",datepecheance:"2026-01-15"};assert.equal(schedule(input).length,12);assert.throws(()=>schedule({...input,duree:13}));});
+
+test("les retraits verses diminuent le solde sans modifier les cotisations",()=>{assert.equal(balance({report:1000,Janvier:10000,Dimunition:500,Retraits:3000}),7500);});

@@ -294,6 +294,7 @@ export function ModuleTable({
               />
             )}
             {userCan(user, page, "update") &&
+              (page !== "contributions" || Number(row.statut) === 1) &&
               [
                 "employees",
                 "contributions",
@@ -323,6 +324,63 @@ export function ModuleTable({
                   }}
                 />
               )}{" "}
+            {page === "contributions" &&
+              userCan(user, "withdrawals", "create") &&
+              Number(row.statut) === 1 &&
+              (user.isAdmin ||
+                user.roles.includes("chef_personnel") ||
+                row.Matricule === user.Matricule) && (
+                <IconButton
+                  icon="withdraw"
+                  label="Demander un retrait"
+                  className="small"
+                  disabled={
+                    busy ||
+                    Number(row.statut) !== 1 ||
+                    Number(row.SoldeAnnuel) <= 0.01 ||
+                    Number(row.annee) !== Number(now.slice(0, 4))
+                  }
+                  onClick={async () => {
+                    setBusy(true);
+                    setError("");
+                    try {
+                      const requests = await api("/withdrawals");
+                      const reserved = requests
+                        .filter(
+                          (r) =>
+                            r.contribution_id === row.id &&
+                            ["pending", "approved"].includes(r.status),
+                        )
+                        .reduce((sum, r) => sum + Number(r.amount), 0);
+                      const available =
+                        Math.round((Number(row.SoldeAnnuel) - reserved) * 100) /
+                        100;
+                      if (available <= 0.01)
+                        throw new Error(
+                          "Le solde disponible ne permet pas de demander un retrait.",
+                        );
+                      setDialog({
+                        title: "Demander un retrait · " + row.Salarie,
+                        path: "/withdrawals",
+                        fields: [
+                          ["amount", "Montant demandé", "number"],
+                          ["reason", "Motif"],
+                        ],
+                        values: {
+                          contribution_id: row.id,
+                          amount: "",
+                          reason: "",
+                        },
+                        withdrawalAvailable: available,
+                      });
+                    } catch (e) {
+                      setError(e.message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+              )}
             {page === "contributions" &&
               userCan(user, "contributions", "stop") &&
               row.statut === 1 && (

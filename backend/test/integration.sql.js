@@ -26,7 +26,7 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
    });await scratch.request().query(`CREATE TABLE dbo.[${table}](${defs.join(',')})`);
   }
   await scratch.request().query("ALTER TABLE dbo.prets ADD mois AS MONTH(datepecheance); CREATE UNIQUE INDEX UX_users_test ON dbo.users(username); CREATE UNIQUE INDEX UX_sal_test ON dbo.Salaries(Matricule);");
-  for(const name of ['001-modern.sql','002-repayments.sql','003-contributions.sql','004-payoffs.sql','005-permissions.sql','006-onboarding.sql'])await scratch.request().query(await fs.readFile(new URL('../sql/'+name,import.meta.url),'utf8'));
+  for(const name of ['001-modern.sql','002-repayments.sql','003-contributions.sql','004-payoffs.sql','005-permissions.sql','006-onboarding.sql','007-withdrawals.sql'])await scratch.request().query(await fs.readFile(new URL('../sql/'+name,import.meta.url),'utf8'));
   const password='Integration@2026!pass';const hash=await hashPassword(password);
   await scratch.request().input('hash',hash).query("INSERT dbo.roles(name) VALUES('admin');INSERT dbo.users(username,first_name,last_name,password) VALUES('integration_admin','Test','Admin',@hash);INSERT dbo.users_roles(UID,RID) SELECT u.UID,r.RID FROM dbo.users u CROSS JOIN dbo.roles r WHERE u.username='integration_admin' AND r.name='admin';");
   let output='';child=spawn(process.execPath,['dist/index.js'],{cwd:process.cwd(),env:{...process.env,DB_DATABASE:name,PORT:String(port)}});child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
@@ -132,7 +132,16 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   const importRow=matricule=>[matricule,'M','Import','Test',10000,500,'R?gion test',region.idregion,'Test'];
   await importRows([importRow('T003'),importRow('T001')],409);
   assert.equal((await call('/employees')).length,2);
+  await importRows([importRow('T003')],409);
+  assert.equal((await call('/employees')).length,2);
+  // Isolated fixture: restore an open January to verify the new import behavior.
+  await scratch.request().input('year',year).query('DELETE dbo.cloture_cot WHERE annee=@year AND mois=1');
   assert.equal((await importRows([importRow('T003')],200)).imported,1);
+  const importedContribution=(await call('/contributions?year='+year)).find(r=>r.Matricule==='T003');
+  assert.equal(importedContribution.Janvier,10000);
+  assert.equal(importedContribution.Fevrier,0);
+  assert.equal(importedContribution.Decembre,0);
+  await call('/closures',{type:'contributions',annee:year,mois:1});
   const opening=await call('/contributions/year',{year:year+1});assert.equal(opening.created,3);
   assert.equal((await call('/contributions/year',{year:year+1})).created,0);
   const next=(await call('/contributions?year='+(year+1))).find(r=>r.Matricule==='T001');assert.equal(next.report,4634);
@@ -148,11 +157,11 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   const template=await fetch('http://127.0.0.1:'+port+'/api/employees/template',{headers:{Cookie:cookie}});assert.equal(template.status,200);const templateBook=new ExcelJS.Workbook();await templateBook.xlsx.load(Buffer.from(await template.arrayBuffer()));assert.equal(templateBook.worksheets[0].getRow(1).getCell(1).text,'Matricule');
   await call('/charges',{type_charge:'Test',designation:'Précision invalide',montant:1.001},'POST',400);
   
-  const report=await call('/reports?year='+year);assert.equal(report.rows.length,12);assert.equal(report.totals.contributions,21234);assert.equal(report.totals.scheduled,109000);assert.equal(report.totals.charges,0);assert.equal(report.rows[0].contributions,20000);assert.equal(report.rows[1].contributions,1234);
+  const report=await call('/reports?year='+year);assert.equal(report.rows.length,12);assert.equal(report.totals.contributions,31234);assert.equal(report.totals.scheduled,109000);assert.equal(report.totals.charges,0);assert.equal(report.rows[0].contributions,30000);assert.equal(report.rows[1].contributions,1234);
   const currentReceipts=(await call('/repayments')).filter(r=>!r.reversed_at&&new Date(new Date(r.recorded_at).getTime()+3600000).getUTCFullYear()===year).reduce((sum,r)=>sum+Number(r.amount),0);assert.equal(Math.round(report.totals.received*100),Math.round(currentReceipts*100));
   await call('/auth/login',{username:'integration_member',password:'123456'});const freshMemberCookie=cookie;cookie=adminCookie;
   await call('/reports?year='+year,undefined,'GET',403,freshMemberCookie);await call('/reports?year=invalid',undefined,'GET',400);
-  const reportExport=await fetch('http://127.0.0.1:'+port+'/api/reports/export?year='+year,{headers:{Cookie:cookie}});assert.equal(reportExport.status,200);const reportBook=new ExcelJS.Workbook();await reportBook.xlsx.load(Buffer.from(await reportExport.arrayBuffer()));assert.equal(reportBook.worksheets.length,2);assert.equal(reportBook.worksheets[0].getCell('B14').value,21234);assert.equal(reportBook.worksheets[0].getCell('A14').value,'TOTAL');
+  const reportExport=await fetch('http://127.0.0.1:'+port+'/api/reports/export?year='+year,{headers:{Cookie:cookie}});assert.equal(reportExport.status,200);const reportBook=new ExcelJS.Workbook();await reportBook.xlsx.load(Buffer.from(await reportExport.arrayBuffer()));assert.equal(reportBook.worksheets.length,2);assert.equal(reportBook.worksheets[0].getCell('B14').value,31234);assert.equal(reportBook.worksheets[0].getCell('A14').value,'TOTAL');
   // À la frontière de l’année, les remboursements utilisent l’heure de Lagos.
   const dated=(await call('/repayments')).find(r=>!r.reversed_at);
   await scratch.request().input('id',dated.id).query("UPDATE dbo.apes_repayments SET recorded_at='2025-12-31T23:30:00' WHERE id=@id");
@@ -165,7 +174,9 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   const preview=await previewCsv(csvHeaders+'\nCSV001;M;CSV;Test;10 000,50;500,25;Région test;'+region.idregion+';Test\n');assert.equal(preview.canImport,true);assert.equal(preview.entries[0].values.MontantCot,10000.5);assert.equal((await call('/employees')).length,currentCount);
   const invalidCsv=csvHeaders+'\nCSV001;M;CSV;Test;100;0;Centre;'+region.idregion+';Test\nCSV001;M;Doublon;Test;100;0;Centre;99999;Test\n';
   const invalidPreview=await previewCsv(invalidCsv);assert.equal(invalidPreview.invalid,2);assert.equal(invalidPreview.canImport,false);await previewCsv(invalidCsv,'/employees/import',409);assert.equal((await call('/employees')).length,currentCount);
+  await scratch.request().input('year',year).query('DELETE dbo.cloture_cot WHERE annee=@year AND mois=1');
   const importedCsv=await previewCsv(csvHeaders+'\nCSV001;M;CSV;Test;10 000,50;500,25;Région test;'+region.idregion+';Test\n','/employees/import');assert.equal(importedCsv.imported,1);assert.equal((await call('/employees')).length,currentCount+1);
+  await call('/closures',{type:'contributions',annee:year,mois:1});
   const csvTemplate=await fetch('http://127.0.0.1:'+port+'/api/employees/template.csv',{headers:{Cookie:cookie}});assert.equal(csvTemplate.status,200);assert.ok((await csvTemplate.text()).includes(csvHeaders));
 
   const beforeUpdate=(await call('/contributions?year='+year)).find(r=>r.Matricule==='CSV001');
@@ -261,7 +272,51 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   const csvAfterClosure=(await call('/contributions?year='+year)).find(r=>r.Matricule==='CSV001');assert.equal(csvAfterClosure.Juillet,Number(csvAfterClosure.montant));assert.equal(csvAfterClosure.Mai,0);assert.ok((await call('/contributions/'+csvAfterClosure.id+'/history')).some(h=>h.action==='closure_fill'&&h.month_number===7));
   const stoppedSummary=await call('/contributions/'+departureRow.id+'/summary');assert.equal(stoppedSummary.total,1500);assert.equal(stoppedSummary.rows.find(r=>r.name==='Juillet').amount,1500);
   const unchanged=(await call('/contributions?year='+year)).find(r=>r.id===departureRow.id);assert.equal(unchanged.Aout,0);assert.equal(unchanged.closedTotal,1500);assert.equal(unchanged.SoldeArret,1500);
+  // Withdrawal lifecycle: reservation, one approval, debit on payment and privacy.
+  const withdrawalEmployee=await call('/employees',{Matricule:'WITH001',Nom:'Retrait',Prenom:'Test',MontantCot:3000,SoldeExo:10000,IDREG:region.idregion},'POST',201);
+  const withdrawalContribution=(await call('/contributions?year='+year)).find(r=>r.Matricule==='WITH001');
+  await call('/auth/login',{username:withdrawalEmployee.account.username,password:'123456'});
+  await call('/auth/password',{current:'123456',password:'abcdef'});
+  await call('/auth/login',{username:withdrawalEmployee.account.username,password:'abcdef'});const withdrawalCookie=cookie;cookie=adminCookie;
+  await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:10000,reason:'Retrait total interdit.'},'POST',409,withdrawalCookie);
+  await call('/withdrawals',{contribution_id:contribution.id,amount:1,reason:'Compte d’un autre salarié.'},'POST',403,withdrawalCookie);
+  const demand=await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:3000,reason:'Besoin personnel.'},'POST',201,withdrawalCookie);
+  await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:7000,reason:'Réservation déjà existante.'},'POST',409,withdrawalCookie);
+  await call('/withdrawals/'+demand.id+'/approve',{},'POST',403,withdrawalCookie);
+  await call('/withdrawals/'+demand.id+'/pay',{},'POST',409);
+  assert.equal((await call('/contributions?year='+year)).find(r=>r.id===withdrawalContribution.id).SoldeAnnuel,10000);
+  const chiefRole=(await call('/roles')).find(r=>r.name==='chef_personnel');
+  await call('/users',{username:'withdrawal_chief',first_name:'Chef',last_name:'Test',email:'',Matricule:'',password:'abcdef',RID:chiefRole.RID},'POST',201);
+  await call('/auth/login',{username:'withdrawal_chief',password:'abcdef'});const chiefCookie=cookie;cookie=adminCookie;
+  await call('/withdrawals/'+demand.id+'/approve',{},'POST',200,chiefCookie);
+  assert.equal((await call('/contributions?year='+year)).find(r=>r.id===withdrawalContribution.id).SoldeAnnuel,10000);
+  await call('/withdrawals/'+demand.id+'/pay',{},'POST',200,chiefCookie);
+  assert.equal((await call('/withdrawals/'+demand.id+'/pay',{})).alreadyPaid,true);
+  const paidWithdrawalRow=(await call('/contributions?year='+year)).find(r=>r.id===withdrawalContribution.id);assert.equal(paidWithdrawalRow.Retraits,3000);assert.equal(paidWithdrawalRow.SoldeAnnuel,7000);assert.equal(paidWithdrawalRow.Janvier,0);
+  const refused=await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:1000,reason:'Demande à refuser.'},'POST',201,withdrawalCookie);
+  await call('/withdrawals/'+refused.id+'/reject',{reason:'Justificatif manquant.'});await call('/withdrawals/'+refused.id+'/pay',{},'POST',409);
+  const otherDemand=await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:1000,reason:'Autre retrait.'},'POST',201);
+  await call('/withdrawals/'+otherDemand.id+'/approve',{});await call('/withdrawals/'+otherDemand.id+'/pay',{});
+  assert.equal((await call('/contributions?year='+year)).find(r=>r.id===withdrawalContribution.id).SoldeAnnuel,6000);
+  const otherWithdrawalEmployee=await call('/employees',{Matricule:'WITH002',Nom:'Autre',Prenom:'Retrait',MontantCot:3000,SoldeExo:1000,IDREG:region.idregion},'POST',201);
+  const otherWithdrawalContribution=(await call('/contributions?year='+year)).find(r=>r.Matricule==='WITH002');
+  await call('/withdrawals',{contribution_id:otherWithdrawalContribution.id,amount:10,reason:'Demande privée.'},'POST',201);
+  const withdrawalExport=await fetch('http://127.0.0.1:'+port+'/api/exports/withdrawals',{headers:{Cookie:withdrawalCookie}});assert.equal(withdrawalExport.status,200);const withdrawalBook=new ExcelJS.Workbook();await withdrawalBook.xlsx.load(Buffer.from(await withdrawalExport.arrayBuffer()));assert.equal(withdrawalBook.worksheets[0].getRow(1).getCell(7).text,'État');assert.ok(withdrawalBook.worksheets[0].getRows(2,withdrawalBook.worksheets[0].rowCount-1).every(row=>row.getCell(2).text==='WITH001'));
+  const memberWithdrawalList=await call('/withdrawals',undefined,'GET',200,withdrawalCookie);assert.ok(memberWithdrawalList.every(r=>r.Matricule==='WITH001'));
+  assert.ok((await call('/contributions/'+withdrawalContribution.id+'/history')).some(r=>r.action==='withdrawal'));
+  const pendingStopped=await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:1000,reason:'Demande en attente avant arrêt.'},'POST',201);
+  const approvedStopped=await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:1000,reason:'Demande validée avant arrêt.'},'POST',201);
+  await call('/withdrawals/'+approvedStopped.id+'/approve',{});
+  await call('/contributions/'+withdrawalContribution.id+'/stop',{});
+  await call('/withdrawals',{contribution_id:withdrawalContribution.id,amount:100,reason:'Compte arrêté.'},'POST',409,withdrawalCookie);
+  await call('/withdrawals/'+pendingStopped.id+'/approve',{},'POST',409,chiefCookie);
+  await call('/withdrawals/'+approvedStopped.id+'/pay',{},'POST',409);
+  assert.equal((await call('/contributions?year='+year)).find(r=>r.id===withdrawalContribution.id).SoldeAnnuel,6000);
+  assert.equal((await call('/withdrawals')).find(r=>r.id===approvedStopped.id).status,'approved');
+  await call('/withdrawals/'+pendingStopped.id+'/reject',{reason:'Cotisations arrêtées.'});
   if(process.env.APES_BROWSER_TEST==='true'){
+
+
 
    const browser=spawn(process.execPath,['scripts/browser-check.js'],{cwd:fileURLToPath(new URL('../../',import.meta.url)),env:{...process.env,APES_QA_URL:'http://127.0.0.1:'+port+'/',APES_QA_USERNAME:'integration_admin',APES_QA_PASSWORD:password,APES_QA_FIRST_LOGIN_USERNAME:duplicateName.account.username},windowsHide:true});let browserOutput='';browser.stdout.on('data',b=>browserOutput+=b);browser.stderr.on('data',b=>browserOutput+=b);const browserExit=await new Promise(resolve=>browser.once('exit',resolve));assert.equal(browserExit,0,browserOutput);console.log(browserOutput);
   }

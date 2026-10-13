@@ -2,6 +2,29 @@ import type { TableProps } from "../types";
 import { useEffect, useState } from "react";
 import { IconButton } from "./IconButton";
 
+function statusBadgeClass(value: unknown) {
+  const label = String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+  if (["arrete", "desactive", "refuse", "annule", "ferme"].includes(label))
+    return "badge status-stopped";
+  if (
+    [
+      "actif",
+      "ouvert",
+      "regle",
+      "enregistre",
+      "cloture",
+      "valide",
+      "verse",
+    ].includes(label)
+  )
+    return "badge status-active";
+  return "badge status-pending";
+}
+
 export function Table({ rows, columns, id, actions, title }: TableProps) {
   const [page, setPage] = useState<any>(0),
     [size, setSize] = useState<any>(10);
@@ -26,11 +49,11 @@ export function Table({ rows, columns, id, actions, title }: TableProps) {
           <tr key={r[id]}>
             {columns.map(([k, , format]) => (
               <td key={k}>
-                {["statut", "status"].includes(k) ? (
+                {["statut", "status", "reversed_at"].includes(k) ? (
                   <span
-                    className={
-                      "badge " + ([0, 2].includes(r[k]) ? "neutral" : "")
-                    }
+                    className={statusBadgeClass(
+                      format ? format(r[k], r) : r[k],
+                    )}
                   >
                     {format ? format(r[k], r) : r[k]}
                   </span>

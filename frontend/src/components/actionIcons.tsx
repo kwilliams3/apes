@@ -1,4 +1,10 @@
 export const actionIcons: any = {
+  withdraw: (
+    <>
+      <path d="M20 10V7H5a2 2 0 0 1 0-4h12v4M3 5v14a2 2 0 0 0 2 2h7" />
+      <path d="M20 10h-5a2 2 0 0 0 0 4h5v-4ZM16 12h.01M15 19h7m-3-3 3 3-3 3" />
+    </>
+  ),
   key: (
     <>
       <circle cx="8" cy="8" r="5" />

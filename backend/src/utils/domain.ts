@@ -61,7 +61,7 @@ export function schedule({
     Number(taux) < 0 ||
     !Number.isInteger(duration) ||
     duration < 1 ||
-    duration > 120 ||
+    duration > 12 ||
     ![1, 3, 6, 12].includes(interval)
   )
     throw new AppError("Paramètres du prêt invalides.");
@@ -106,7 +106,8 @@ export function balance(row: any) {
     Number(row.report || 0) +
       months.reduce((s, m) => s + Number(row[m] || 0), 0) -
       Number(row.DroitAdhesion || 0) -
-      Number(row.Dimunition || 0),
+      Number(row.Dimunition || 0) -
+      Number(row.Retraits || 0),
   );
 }
 export function legacyHash(password: any) {

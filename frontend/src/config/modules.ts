@@ -1,6 +1,7 @@
 import { date, money, statuses } from "./../utils/format";
 
 export const modules: any = {
+  withdrawals: { title: "Retraits", subtitle: "Demandes de retrait sur le solde annuel", id: "id", columns: [], fields: [] },
   arrears: {
     title: "Échéances en retard",
     subtitle: "Les versements restant dus",
@@ -158,6 +159,7 @@ export const modules: any = {
     id: "UID",
     columns: [
       ["username", "Identifiant"],
+      ["last_name", "Nom"],
       ["first_name", "Prénom"],
       ["Matricule", "Matricule"],
       ["roles", "Rôles", (r) => r.map((x) => x.name).join(", ")],

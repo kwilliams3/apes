@@ -154,3 +154,27 @@ tfoot td{font-weight:700;background:#eaf5ef;border-top:2px solid #b4d9c5;color:#
 .sidebar .nav-section-label{color:#ffd77a}[data-theme=dark] .sidebar .nav-section-label{color:#edce7c}
 
 .login-submit{position:relative;justify-content:center;padding-left:48px;padding-right:48px}.login-submit>span{position:absolute;right:19px}
+
+/* Clear colors for active and stopped contribution statuses. */
+.badge.status-active,[data-theme=dark] .badge.status-active{background:#15803d;color:#fff;font-weight:700}
+.badge.status-stopped,[data-theme=dark] .badge.status-stopped{background:#dc2626;color:#fff;font-weight:700}
+
+.badge.status-pending,[data-theme=dark] .badge.status-pending{background:#fef3c7;color:#854d0e;font-weight:700}
+
+/* Five dashboard indicators on one desktop row. */
+.dashboard-stats{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.dashboard-stats .dashboard-stat{min-width:0;padding:20px 14px;white-space:normal;text-align:left}
+.dashboard-stats .dashboard-stat strong{font-size:clamp(15px,1.4vw,23px);white-space:nowrap;letter-spacing:-.5px}
+.dashboard-stats .dashboard-stat>span{min-height:32px;line-height:1.4}
+.dashboard-stats .dashboard-stat small{line-height:1.5}
+@media(max-width:1150px){.dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-stats .dashboard-stat strong{font-size:22px}}
+@media(max-width:420px){.dashboard-stats{grid-template-columns:1fr}}
+
+.toolbar .withdrawal-state-filter{width:auto;min-width:155px}
+@media(max-width:760px){.toolbar .withdrawal-state-filter{flex:1}}
+
+.stopped-payments-modal{position:relative;overflow-x:hidden}
+.stopped-payments-ribbon{position:absolute;top:28px;right:-47px;width:190px;padding:10px 0;background:#dc2626;color:#fff;font-size:20px;font-weight:800;text-align:center;transform:rotate(45deg);box-shadow:0 3px 10px #7f1d1d35;pointer-events:none}
+.stopped-payments-modal>header{padding-right:90px;min-height:62px}
+.stopped-payments-modal>header button{align-self:flex-start;position:relative;z-index:1}
+@media(max-width:760px){.stopped-payments-ribbon{font-size:18px;padding:8px 0;top:24px;right:-54px}.stopped-payments-modal>header{padding-right:72px}}

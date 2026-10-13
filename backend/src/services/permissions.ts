@@ -1,6 +1,18 @@
 import { query, atomic, audit } from "./../config/db.js";
 import { isAdmin, AppError } from "./../utils/domain.js";
 export const permissionModules = {
+  withdrawals: {
+    label: "Retraits",
+    actions: [
+      "read",
+      "read_all",
+      "create",
+      "approve",
+      "reject",
+      "pay",
+      "export",
+    ],
+  },
   employees: {
     label: "Salariés",
     actions: ["read", "read_all", "create", "update", "import", "export"],
@@ -64,15 +76,13 @@ export function roleDefaults(name: any) {
   for (const [module, { actions }] of Object.entries(permissionModules))
     rules[module] = Object.fromEntries(actions.map((a) => [a, all]));
   if (all) return rules;
-  for (const module of [
-    "employees",
-    "contributions",
-    "loans",
-    "repayments",
-    "arrears",
-    "regions",
-  ])
-    rules[module].read = true;
+  const role = String(name).trim().toLowerCase();
+  const grant = (module: string, ...actions: string[]) => {
+    for (const action of actions) rules[module][action] = true;
+  };
+  // Unknown roles require explicit permissions from the administrator.
+  if (!["membre", "commissaire", "chef_personnel", "president"].includes(role))
+    return rules;
   for (const module of [
     "employees",
     "contributions",
@@ -80,14 +90,38 @@ export function roleDefaults(name: any) {
     "repayments",
     "arrears",
   ])
-    rules[module].export = true;
-  rules.loans.create = true;
-  rules.loans.sign = true;
-  rules.loans.reject = true;
-  if (
-    ["commissaire", "chef_personnel", "president"].includes(name.toLowerCase())
-  )
-    rules.loans.read_all = true;
+    grant(module, "read", "export");
+  grant("regions", "read");
+  grant("loans", "create", "sign");
+  grant("withdrawals", "read", "create", "export");
+  if (role === "membre") return rules;
+  for (const module of [
+    "employees",
+    "contributions",
+    "loans",
+    "repayments",
+    "arrears",
+  ])
+    grant(module, "read_all");
+  grant("loans", "reject");
+  if (role === "chef_personnel") {
+    grant("withdrawals", "read_all", "approve", "reject", "pay");
+    grant("employees", "create", "update", "import");
+    grant("regions", "create", "update", "export");
+    return rules;
+  }
+  for (const module of ["charges", "placements", "reports", "audit"])
+    grant(module, "read", "export");
+  grant("closures", "read");
+  grant("entities", "read", "export");
+  if (role === "president") {
+    grant("contributions", "update", "stop", "generate", "open_year");
+    grant("repayments", "pay", "reverse");
+    grant("loans", "payoff");
+    grant("closures", "close");
+    for (const module of ["charges", "placements"])
+      grant(module, "create", "update", "delete");
+  }
   return rules;
 }
 export function resolvePermissions(
@@ -157,7 +191,12 @@ export function routePermission(req: any) {
           : req.method === "PUT" || req.method === "PATCH"
             ? "update"
             : "create";
-  if (module === "exports") {
+  if (
+    module === "withdrawals" &&
+    ["approve", "pay", "reject"].includes(path[2])
+  ) {
+    action = path[2];
+  } else if (module === "exports") {
     module = path[1];
     action = "export";
   } else if (module === "payments") {

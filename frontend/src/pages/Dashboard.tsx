@@ -22,7 +22,7 @@ export function Dashboard({ data, user, changePage, refresh }: any) {
         </div>
         <IconButton icon="refresh" label="Actualiser" onClick={refresh} />
       </section>
-      <div className="stats">
+      <div className="stats dashboard-stats">
         {[
           [
             "Cotisations enregistrées",

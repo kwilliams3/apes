@@ -1,4 +1,5 @@
 export const permissionLabels: any = {
+  approve: "Valider un retrait",
   read: "Consulter",
   read_all: "Voir tous les dossiers",
   create: "Ajouter",

@@ -35,3 +35,10 @@ export const statuses: any = {
   5: "Président",
   6: "Ouvert",
 };
+
+export function latestFirstDueDate() {
+ const today = new Intl.DateTimeFormat("en-CA", {timeZone:"Africa/Lagos",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const [year,month,day]=today.split("-").map(Number);
+ const last=new Date(Date.UTC(year,month+2,0)).getUTCDate();
+ return new Date(Date.UTC(year,month+1,Math.min(day,last))).toISOString().slice(0,10);
+}

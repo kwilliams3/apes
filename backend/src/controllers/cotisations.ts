@@ -109,6 +109,8 @@ export const putCotisationsHandler11 = async (req: any, res: any) => {
         [months[data.mois - 1]]: data.montant,
         Dimunition: data.Dimunition,
       };
+      if (Number(row.Retraits || 0) > 0 && balance(next) < 0)
+        throw new AppError("Cette correction rendrait le solde négatif après les retraits versés.", 409);
       await query(
         `UPDATE dbo.cotisation SET [${months[data.mois - 1]}]=@montant,Dimunition=@Dimunition,SoldeAnnuel=@balance,edit_version=edit_version+1 WHERE id=@id`,
         { ...data, id, balance: balance(next) },
@@ -153,7 +155,7 @@ export const postCotisationsHandler12 = async (req: any, res: any) =>
       if (!row) throw new AppError("Cotisation introuvable.", 404);
       if (row.statut !== 1) throw new AppError("Cotisation déjà arrêtée.", 409);
       await query(
-        "UPDATE dbo.cotisation SET statut=2,SoldeArret=COALESCE(report,0)+COALESCE([Janvier],0)+COALESCE([Fevrier],0)+COALESCE([Mars],0)+COALESCE([Avril],0)+COALESCE([Mai],0)+COALESCE([Juin],0)+COALESCE([Juillet],0)+COALESCE([Aout],0)+COALESCE([Septembre],0)+COALESCE([Octobre],0)+COALESCE([Novembre],0)+COALESCE([Decembre],0)-COALESCE(DroitAdhesion,0)-COALESCE(Dimunition,0),edit_version=edit_version+1 WHERE Matricule=@matricule AND annee>=@year AND statut=1",
+        "UPDATE dbo.cotisation SET statut=2,SoldeArret=COALESCE(report,0)+COALESCE([Janvier],0)+COALESCE([Fevrier],0)+COALESCE([Mars],0)+COALESCE([Avril],0)+COALESCE([Mai],0)+COALESCE([Juin],0)+COALESCE([Juillet],0)+COALESCE([Aout],0)+COALESCE([Septembre],0)+COALESCE([Octobre],0)+COALESCE([Novembre],0)+COALESCE([Decembre],0)-COALESCE(DroitAdhesion,0)-COALESCE(Dimunition,0)-COALESCE(Retraits,0),edit_version=edit_version+1 WHERE Matricule=@matricule AND annee>=@year AND statut=1",
         { matricule: row.Matricule, year: row.annee },
         tx,
       );
