@@ -1,3 +1,4 @@
+import { paginationItems } from "../utils/pagination";
 import type { TableProps } from "../types";
 import { useEffect, useState } from "react";
 import { IconButton } from "./IconButton";
@@ -111,23 +112,44 @@ export function Table({ rows, columns, id, actions, title }: TableProps) {
           {rows.length ? start + 1 : 0}–{Math.min(start + size, rows.length)}{" "}
           sur {rows.length}
         </span>
-        <div className="pagination-navigation">
+        <nav
+          className="pagination-navigation"
+          aria-label="Pagination du tableau"
+        >
           <IconButton
             icon="left"
             label="Page précédente"
             disabled={current === 0}
             onClick={() => setPage(current - 1)}
           />
-          <span>
-            Page {current + 1} / {pages}
-          </span>
+          {paginationItems(current + 1, pages).map((item, index) =>
+            item === "ellipsis" ? (
+              <span
+                className="pagination-ellipsis"
+                key={"ellipsis-" + index}
+                aria-hidden="true"
+              >
+                …
+              </span>
+            ) : (
+              <button
+                className="pagination-page"
+                key={item}
+                aria-label={"Page " + item}
+                aria-current={item === current + 1 ? "page" : undefined}
+                onClick={() => setPage(item - 1)}
+              >
+                {item}
+              </button>
+            ),
+          )}
           <IconButton
             icon="right"
             label="Page suivante"
             disabled={current + 1 >= pages}
             onClick={() => setPage(current + 1)}
           />
-        </div>
+        </nav>
       </div>
     </div>
   );

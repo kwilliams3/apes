@@ -85,7 +85,7 @@ export const putCotisationsHandler11 = async (req: any, res: any) => {
       ).recordset[0];
       if (!row) throw new AppError("Cotisation introuvable.", 404);
       if (row.statut !== 1)
-        throw new AppError("Les cotisations de ce membre sont arrêtées.", 409);
+        throw new AppError(row.statut === 3 ? "Les cotisations de ce membre sont en pause." : "Les cotisations de ce membre sont arrêtées.", 409);
       if (data.edit_version !== row.edit_version)
         throw new AppError(
           "Cette cotisation a été modifiée depuis l’ouverture du formulaire. Actualisez la liste avant de réessayer.",
@@ -104,6 +104,8 @@ export const putCotisationsHandler11 = async (req: any, res: any) => {
           "Ce mois est bloqué par sa clôture ou celle d’un mois ultérieur.",
           409,
         );
+      if (Number(row[months[data.mois-1]]) !== data.montant && (await query('SELECT id FROM dbo.apes_contribution_pauses WHERE Matricule=@matricule AND start_period<=@period AND (end_period IS NULL OR end_period>@period)',{matricule:row.Matricule,period:Number(row.annee)*100+data.mois},tx)).recordset.length)
+        throw new AppError("Ce mois appartient à une période de pause. Aucun rattrapage automatique n’est autorisé.",409);
       const next = {
         ...row,
         [months[data.mois - 1]]: data.montant,
@@ -153,9 +155,9 @@ export const postCotisationsHandler12 = async (req: any, res: any) =>
           )
         ).recordset[0];
       if (!row) throw new AppError("Cotisation introuvable.", 404);
-      if (row.statut !== 1) throw new AppError("Cotisation déjà arrêtée.", 409);
+      if (row.statut === 2) throw new AppError("Cotisation déjà arrêtée.", 409);
       await query(
-        "UPDATE dbo.cotisation SET statut=2,SoldeArret=COALESCE(report,0)+COALESCE([Janvier],0)+COALESCE([Fevrier],0)+COALESCE([Mars],0)+COALESCE([Avril],0)+COALESCE([Mai],0)+COALESCE([Juin],0)+COALESCE([Juillet],0)+COALESCE([Aout],0)+COALESCE([Septembre],0)+COALESCE([Octobre],0)+COALESCE([Novembre],0)+COALESCE([Decembre],0)-COALESCE(DroitAdhesion,0)-COALESCE(Dimunition,0)-COALESCE(Retraits,0),edit_version=edit_version+1 WHERE Matricule=@matricule AND annee>=@year AND statut=1",
+        "UPDATE dbo.cotisation SET statut=2,SoldeArret=COALESCE(report,0)+COALESCE([Janvier],0)+COALESCE([Fevrier],0)+COALESCE([Mars],0)+COALESCE([Avril],0)+COALESCE([Mai],0)+COALESCE([Juin],0)+COALESCE([Juillet],0)+COALESCE([Aout],0)+COALESCE([Septembre],0)+COALESCE([Octobre],0)+COALESCE([Novembre],0)+COALESCE([Decembre],0)-COALESCE(DroitAdhesion,0)-COALESCE(Dimunition,0)-COALESCE(Retraits,0),edit_version=edit_version+1 WHERE Matricule=@matricule AND annee>=@year AND statut IN (1,3)",
         { matricule: row.Matricule, year: row.annee },
         tx,
       );
@@ -193,15 +195,16 @@ export const postCotisationsHandler31 = async (req: any, res: any) => {
             tx,
           )
         ).recordset[0];
-        if (prior && prior.statut !== 1) continue;
+        if (prior && prior.statut === 2) continue;
         const report = prior ? balance(prior) : Number(employee.SoldeExo);
         await query(
-          "INSERT dbo.cotisation(Matricule,Salarie,report,montant,SoldeAnnuel,annee,statut,DroitAdhesion) VALUES(@matricule,@name,@report,@amount,@report,@year,1,0)",
+          "INSERT dbo.cotisation(Matricule,Salarie,report,montant,SoldeAnnuel,annee,statut,DroitAdhesion) VALUES(@matricule,@name,@report,@amount,@report,@year,@status,0)",
           {
             matricule: employee.Matricule,
             name: `${employee.Nom} ${employee.Prenom}`.trim(),
             report,
             amount: Number(employee.MontantCot),
+            status: prior?.statut === 3 ? 3 : 1,
             year,
           },
           tx,

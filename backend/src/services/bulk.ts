@@ -33,7 +33,7 @@ async function monthlyRows(data: any, tx: any = undefined) {
     );
   return (
     await query(
-      `SELECT * FROM dbo.cotisation WHERE annee=@annee AND statut=1 AND COALESCE([${months[data.mois - 1]}],0)=0 AND montant>0 ORDER BY Salarie`,
+      `SELECT * FROM dbo.cotisation WHERE annee=@annee AND statut IN (1,3) AND COALESCE([${months[data.mois - 1]}],0)=0 AND montant>0 AND NOT EXISTS(SELECT 1 FROM dbo.apes_contribution_pauses p WHERE p.Matricule=cotisation.Matricule AND p.start_period<=@annee*100+@mois AND (p.end_period IS NULL OR p.end_period>@annee*100+@mois)) ORDER BY Salarie`,
       data,
       tx,
     )

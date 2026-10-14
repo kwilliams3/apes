@@ -44,13 +44,17 @@ export function DialogHost({
           (dialog.importPreview || dialog.statement || dialog.monthlyBatch
             ? "import-modal"
             : "") +
-          (dialog.details && Number(dialog.details.statut) === 2 ? " stopped-payments-modal" : "")
+          (dialog.details && [2,3].includes(Number(dialog.details.statut))
+            ? " stopped-payments-modal"
+            : "")
         }
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
       >
-        {dialog.details && Number(dialog.details.statut) === 2 && <span className="stopped-payments-ribbon">Arrêté</span>}
+        {dialog.details && [2, 3].includes(Number(dialog.details.statut)) && (
+          <span className={"stopped-payments-ribbon" + (Number(dialog.details.statut) === 3 ? " paused-payments-ribbon" : "")}>{Number(dialog.details.statut) === 3 ? "En pause" : "Arrêté"}</span>
+        )}
         <header>
           <h2 id="dialog-title">{dialog.title}</h2>
           <button
@@ -229,12 +233,14 @@ export function DialogHost({
                   }
                   field={[k, label, t]}
                   allowedMonths={
-                    dialog.path === "/closures" && k === "mois"
-                      ? availableClosureMonths(
-                          data?.[dialog.values.type] || [],
-                          Number(dialog.values.annee),
-                        )
-                      : undefined
+                    dialog.contributionPause && k === "mois"
+                      ? dialog.allowedMonths
+                      : dialog.path === "/closures" && k === "mois"
+                        ? availableClosureMonths(
+                            data?.[dialog.values.type] || [],
+                            Number(dialog.values.annee),
+                          )
+                        : undefined
                   }
                   numericMin={
                     dialog.path === "/withdrawals" && k === "amount"
@@ -279,7 +285,7 @@ export function DialogHost({
                   onChange={(v) =>
                     setDialog((d) => {
                       const values = { ...d.values, [k]: v };
-                      if (page === "contributions" && k === "mois")
+                      if (page === "contributions" && k === "mois" && d.row)
                         values.montant = d.row[months[v - 1]];
                       if (
                         page === "loans" &&
@@ -301,6 +307,13 @@ export function DialogHost({
                 Intérêt forfaitaire sur le montant initial. La durée correspond
                 au nombre de versements. Les échéances tombent en fin de mois,
                 comme dans APES actuel.
+              </p>
+            )}
+            {dialog.contributionPause && (
+              <p className="table-note">
+                Le motif est obligatoire. La pause conserve les versements déjà
+                enregistrés. Les mois de pause ne sont pas générés
+                automatiquement ; la reprise s’applique à partir du mois choisi.
               </p>
             )}
             {dialog.path?.includes("password") && (

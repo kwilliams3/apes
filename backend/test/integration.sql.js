@@ -26,7 +26,7 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
    });await scratch.request().query(`CREATE TABLE dbo.[${table}](${defs.join(',')})`);
   }
   await scratch.request().query("ALTER TABLE dbo.prets ADD mois AS MONTH(datepecheance); CREATE UNIQUE INDEX UX_users_test ON dbo.users(username); CREATE UNIQUE INDEX UX_sal_test ON dbo.Salaries(Matricule);");
-  for(const name of ['001-modern.sql','002-repayments.sql','003-contributions.sql','004-payoffs.sql','005-permissions.sql','006-onboarding.sql','007-withdrawals.sql'])await scratch.request().query(await fs.readFile(new URL('../sql/'+name,import.meta.url),'utf8'));
+  for(const name of ['001-modern.sql','002-repayments.sql','003-contributions.sql','004-payoffs.sql','005-permissions.sql','006-onboarding.sql','007-withdrawals.sql','008-contribution-pauses.sql'])await scratch.request().query(await fs.readFile(new URL('../sql/'+name,import.meta.url),'utf8'));
   const password='Integration@2026!pass';const hash=await hashPassword(password);
   await scratch.request().input('hash',hash).query("INSERT dbo.roles(name) VALUES('admin');INSERT dbo.users(username,first_name,last_name,password) VALUES('integration_admin','Test','Admin',@hash);INSERT dbo.users_roles(UID,RID) SELECT u.UID,r.RID FROM dbo.users u CROSS JOIN dbo.roles r WHERE u.username='integration_admin' AND r.name='admin';");
   let output='';child=spawn(process.execPath,['dist/index.js'],{cwd:process.cwd(),env:{...process.env,DB_DATABASE:name,PORT:String(port)}});child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
@@ -314,7 +314,29 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   assert.equal((await call('/contributions?year='+year)).find(r=>r.id===withdrawalContribution.id).SoldeAnnuel,6000);
   assert.equal((await call('/withdrawals')).find(r=>r.id===approvedStopped.id).status,'approved');
   await call('/withdrawals/'+pendingStopped.id+'/reject',{reason:'Cotisations arrêtées.'});
+  await call('/contributions/'+withdrawalContribution.id+'/pause',{mois:10,reason:'Compte arrêté.'},'POST',409);
+  await call('/contributions/'+withdrawalContribution.id+'/resume',{mois:10,reason:'Compte arrêté.'},'POST',409);
+  const pausedEmployee=await call('/employees',{Matricule:'PAUSE001',Nom:'Pause',Prenom:'Maternité',MontantCot:3000,SoldeExo:10000,IDREG:region.idregion},'POST',201);
+  let pausedRow=(await call('/contributions?year='+year)).find(r=>r.Matricule==='PAUSE001');
+  await call('/contributions/'+pausedRow.id+'/pause',{mois:8,reason:''},'POST',400);
+  await call('/contributions/'+pausedRow.id+'/pause',{mois:8,reason:'Congé maternité.'},'POST',403,access);
+  await call('/contributions/'+pausedRow.id+'/pause',{mois:7,reason:'Mois déjà clôturé.'},'POST',409);
+  await call('/contributions/'+pausedRow.id+'/pause',{mois:8,reason:'Congé maternité.'});
+  assert.equal((await call('/contributions?year='+year)).find(r=>r.id===pausedRow.id).statut,3);
+  assert.ok(!(await call('/contributions/month/preview?annee='+year+'&mois=9')).rows.some(r=>r.id===pausedRow.id));
+  await call('/contributions/year',{year:year+1});assert.equal((await call('/contributions?year='+(year+1))).find(r=>r.Matricule==='PAUSE001').statut,3);
+  await call('/closures',{type:'contributions',annee:year,mois:8});await call('/closures',{type:'contributions',annee:year,mois:9});
+  pausedRow=(await call('/contributions?year='+year)).find(r=>r.id===pausedRow.id);assert.equal(pausedRow.Aout,0);assert.equal(pausedRow.Septembre,0);assert.equal(pausedRow.SoldeAnnuel,10000);
+  await call('/contributions/'+pausedRow.id+'/resume',{mois:10,reason:''},'POST',400);
+  await call('/contributions/'+pausedRow.id+'/resume',{mois:10,reason:'Retour du congé maternité.'});
+  assert.equal((await call('/contributions?year='+(year+1))).find(r=>r.Matricule==='PAUSE001').statut,1);
+  const resumed=(await call('/contributions?year='+year)).find(r=>r.id===pausedRow.id);assert.equal(resumed.statut,1);assert.equal(resumed.Septembre,0);
+  assert.ok((await call('/contributions/month/preview?annee='+year+'&mois=10')).rows.some(r=>r.id===pausedRow.id));
+  await call('/contributions/'+pausedRow.id+'/resume',{mois:10,reason:'Double reprise.'},'POST',409);
+  const pauseHistory=await call('/contributions/'+pausedRow.id+'/history');assert.ok(pauseHistory.some(r=>r.action==='pause'&&r.reason==='Congé maternité.'));assert.ok(pauseHistory.some(r=>r.action==='resume'));
+  await call('/contributions/'+otherWithdrawalContribution.id+'/pause',{mois:10,reason:'Pause pour vérification interface.'});
   if(process.env.APES_BROWSER_TEST==='true'){
+
 
 
 

@@ -26,7 +26,8 @@ export async function fillClosedContributions(
  UPDATE c SET [${field}]=montant,SoldeAnnuel=ROUND(${before("")}+montant,2),edit_version=edit_version+1
  OUTPUT INSERTED.id,INSERTED.montant,COALESCE(DELETED.Dimunition,0),ROUND(${before("DELETED.")},2),INSERTED.SoldeAnnuel INTO @changes
  FROM dbo.cotisation c WITH(UPDLOCK,HOLDLOCK)
- WHERE c.statut=1 AND c.montant>0 AND COALESCE(c.[${field}],0)=0 AND c.annee=@year
+ WHERE c.statut IN (1,3) AND c.montant>0 AND COALESCE(c.[${field}],0)=0 AND c.annee=@year
+ AND NOT EXISTS(SELECT 1 FROM dbo.apes_contribution_pauses p WHERE p.Matricule=c.Matricule AND p.start_period<=@year*100+@period AND (p.end_period IS NULL OR p.end_period>@year*100+@period))
  AND NOT EXISTS(SELECT 1 FROM dbo.apes_contribution_changes h WHERE h.contribution_id=c.id AND h.month_number=@period);
  INSERT dbo.apes_contribution_changes(contribution_id,action,month_number,month_before,month_after,reduction_before,reduction_after,balance_before,balance_after,reason,recorded_by)
  SELECT id,'closure_fill',@period,0,amount,reduction,reduction,before_balance,after_balance,@reason,@uid FROM @changes;

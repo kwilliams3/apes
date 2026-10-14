@@ -12,6 +12,8 @@ export const permissionLabels: any = {
   pay: "Enregistrer un versement",
   reverse: "Annuler un versement",
   payoff: "Solder un prêt",
+  pause: "Mettre en pause",
+  resume: "Reprendre les cotisations",
   stop: "Arrêter les cotisations",
   generate: "Générer le mois",
   open_year: "Ouvrir une année",

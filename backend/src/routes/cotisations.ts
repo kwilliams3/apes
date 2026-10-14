@@ -22,3 +22,17 @@ router.get("/contributions/:id/summary", getCotisationsHandler39);
 router.get("/contributions/:id/history", getCotisationsHandler40);
 router.get("/contributions/month/preview", admin, getCotisationsHandler47);
 router.post("/contributions/month/apply", admin, postCotisationsHandler48);
+
+import { setContributionPause } from "../services/contribution-pauses.js";
+import { z } from "zod";
+import { idOf, text } from "./shared.js";
+for (const action of ["pause", "resume"] as const)
+  router.post("/contributions/:id/" + action, async (req: any, res) => {
+    const data = z
+      .object({
+        mois: z.coerce.number().int().min(1).max(12),
+        reason: text(300),
+      })
+      .parse(req.body);
+    res.json(await setContributionPause(req.user, idOf(req), action, data));
+  });

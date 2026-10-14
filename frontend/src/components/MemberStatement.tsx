@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { date, money, months, statuses } from "./../utils/format";
+import { contributionStatus, date, money, months, statuses } from "./../utils/format";
 import { Table } from "./Table";
 
 export function MemberStatement({ data }: any) {
@@ -72,7 +72,7 @@ export function MemberStatement({ data }: any) {
           ["Dimunition", "Réduction", money],
           ["Retraits", "Retraits versés", money],
           ["SoldeAnnuel", "Solde", money],
-          ["statut", "État", (v) => (v === 1 ? "Actif" : "Arrêté")],
+          ["statut", "État", contributionStatus],
         ]}
       />
       <h3>Versements mensuels · {year}</h3>

@@ -49,7 +49,7 @@ async function contribution(tx: any, id: number) {
   return row;
 }
 async function eligible(tx: any, row: any) {
-  if (Number(row.statut) !== 1) throw new AppError("Les cotisations de ce compte sont arrêtées. Aucun retrait n’est autorisé.", 409);
+  if (Number(row.statut) === 2) throw new AppError("Les cotisations de ce compte sont arrêtées. Aucun retrait n’est autorisé.", 409);
   if (Number(row.annee) !== Number(dateToday().slice(0, 4)))
     throw new AppError(
       "Le retrait doit concerner le solde de l’année en cours.",

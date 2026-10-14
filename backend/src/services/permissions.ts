@@ -24,6 +24,8 @@ export const permissionModules = {
       "read_all",
       "update",
       "stop",
+      "pause",
+      "resume",
       "generate",
       "open_year",
       "export",
@@ -115,7 +117,15 @@ export function roleDefaults(name: any) {
   grant("closures", "read");
   grant("entities", "read", "export");
   if (role === "president") {
-    grant("contributions", "update", "stop", "generate", "open_year");
+    grant(
+      "contributions",
+      "update",
+      "stop",
+      "pause",
+      "resume",
+      "generate",
+      "open_year",
+    );
     grant("repayments", "pay", "reverse");
     grant("loans", "payoff");
     grant("closures", "close");
@@ -213,7 +223,11 @@ export function routePermission(req: any) {
     action = "generate";
   else if (module === "contributions" && path[1] === "year")
     action = "open_year";
-  else if (module === "contributions" && path[2] === "stop") action = "stop";
+  else if (
+    module === "contributions" &&
+    ["stop", "pause", "resume"].includes(path[2])
+  )
+    action = path[2];
   else if (module === "loans" && path[1] === "preview") action = "create";
   else if (module === "loans" && path[2] === "sign") action = "sign";
   else if (module === "loans" && path[2] === "reject") action = "reject";

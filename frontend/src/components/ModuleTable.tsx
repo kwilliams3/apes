@@ -1,4 +1,4 @@
-import { months, money, date, now, statuses } from "./../utils/format";
+import { auditActionLabel, auditReferenceLabel, auditModuleLabel, months, money, date, now, statuses } from "./../utils/format";
 import { userCan } from "./../config/navigation";
 import { IconButton } from "./IconButton";
 import { exportCsv } from "./../services/exportCsv";
@@ -8,6 +8,7 @@ import { Table } from "./Table";
 export function ModuleTable({
   availableMonths,
   search,
+  hideSearch,
   setSearch,
   page,
   contributionYear,
@@ -37,13 +38,27 @@ export function ModuleTable({
   return (
     <section className="card table-card">
       <div className="toolbar">
-        <input
-          className="search"
-          aria-label="Rechercher"
-          placeholder="Rechercher dans la liste…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        {hideSearch ? null : page === "audit" ? (
+          <label className="audit-search">
+            <span>Rechercher dans le journal</span>
+            <input
+              type="search"
+              className="search"
+              aria-label="Rechercher dans le journal"
+              placeholder="Utilisateur, action, module, référence ou date…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+        ) : (
+          <input
+            className="search"
+            aria-label="Rechercher"
+            placeholder="Rechercher dans la liste…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        )}
         {page === "contributions" && (
           <input
             type="number"
@@ -122,7 +137,7 @@ export function ModuleTable({
         <span className="count">{filtered.length} résultat(s)</span>
         {userCan(user, page, "export") && (
           <button
-            onClick={() => exportCsv(filtered, visibleColumns, meta.title)}
+            onClick={() => exportCsv(page === "audit" ? filtered.map(row=>({...row,username:row.user_display_name || row.username || "Utilisateur supprimé",entity:auditModuleLabel(row.entity),entity_id:auditReferenceLabel(row.entity_id,row),action:auditActionLabel(row.action)})) : filtered, visibleColumns, meta.title)}
           >
             CSV
           </button>
@@ -269,6 +284,33 @@ export function ModuleTable({
         title={meta.title}
         actions={(row) => (
           <>
+            {page === "contributions" && (
+              <IconButton
+                icon="eye"
+                label="Détails des versements"
+                className="small"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    setDialog({
+                      title: "Versements · " + row.Salarie,
+                      details: row,
+                      history: await api(
+                        "/contributions/" + row.id + "/history",
+                      ),
+                      contributionSummary: await api(
+                        "/contributions/" + row.id + "/summary",
+                      ),
+                    });
+                  } catch (e) {
+                    setError(e.message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            )}
             {page === "employees" && (
               <IconButton
                 icon="folder"
@@ -326,7 +368,7 @@ export function ModuleTable({
               )}{" "}
             {page === "contributions" &&
               userCan(user, "withdrawals", "create") &&
-              Number(row.statut) === 1 &&
+              [1, 3].includes(Number(row.statut)) &&
               (user.isAdmin ||
                 user.roles.includes("chef_personnel") ||
                 row.Matricule === user.Matricule) && (
@@ -336,7 +378,7 @@ export function ModuleTable({
                   className="small"
                   disabled={
                     busy ||
-                    Number(row.statut) !== 1 ||
+                    Number(row.statut) === 2 ||
                     Number(row.SoldeAnnuel) <= 0.01 ||
                     Number(row.annee) !== Number(now.slice(0, 4))
                   }
@@ -382,48 +424,79 @@ export function ModuleTable({
                 />
               )}
             {page === "contributions" &&
+              [1, 3].includes(Number(row.statut)) &&
+              userCan(
+                user,
+                "contributions",
+                row.statut === 3 ? "resume" : "pause",
+              ) && (
+                <IconButton
+                  icon={row.statut === 3 ? "play" : "pause"}
+                  label={
+                    row.statut === 3
+                      ? "Reprendre les cotisations"
+                      : "Mettre en pause"
+                  }
+                  className="small"
+                  disabled={busy}
+                  onClick={() =>
+                    setDialog({
+                      title:
+                        (row.statut === 3
+                          ? "Reprendre les cotisations · "
+                          : "Mettre en pause · ") + row.Salarie,
+                      path:
+                        "/contributions/" +
+                        row.id +
+                        "/" +
+                        (row.statut === 3 ? "resume" : "pause"),
+                      fields: [
+                        [
+                          "mois",
+                          row.statut === 3
+                            ? "Mois de reprise"
+                            : "Premier mois sans cotisation",
+                          "months",
+                        ],
+                        ["reason", "Motif"],
+                      ],
+                      values: { mois: contributionMonth, reason: "" },
+                      contributionPause: true,
+                      allowedMonths: (
+                        availableMonths || months.map((_, i) => i + 1)
+                      ).filter(
+                        (m) =>
+                          Number(row.annee) * 100 + Number(m) <=
+                          Number(now.slice(0, 4)) * 100 +
+                            Number(now.slice(5, 7)),
+                      ),
+                    })
+                  }
+                />
+              )}
+            {page === "contributions" &&
               userCan(user, "contributions", "stop") &&
-              row.statut === 1 && (
+              [1, 3].includes(Number(row.statut)) && (
                 <IconButton
                   icon="stop"
                   label="Arrêter les cotisations"
                   className="small danger"
                   disabled={busy}
-                  onClick={() => {
-                    if (
-                      window.confirm("Arrêter les cotisations de ce membre ?")
-                    )
-                      mutate(`/contributions/${row.id}/stop`, {});
-                  }}
+                  onClick={() =>
+                    setDialog({
+                      title: "Arrêter les cotisations",
+                      confirmation: {
+                        path: `/contributions/${row.id}/stop`,
+                        body: {},
+                        danger: true,
+                        submitLabel: "Arrêter",
+                        message: "Arrêter les cotisations de ce membre ?",
+                      },
+                    })
+                  }
                 />
               )}
-            {page === "contributions" && (
-              <IconButton
-                icon="eye"
-                label="Détails des versements"
-                className="small"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    setDialog({
-                      title: "Versements · " + row.Salarie,
-                      details: row,
-                      history: await api(
-                        "/contributions/" + row.id + "/history",
-                      ),
-                      contributionSummary: await api(
-                        "/contributions/" + row.id + "/summary",
-                      ),
-                    });
-                  } catch (e) {
-                    setError(e.message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              />
-            )}
+
             {["loans", "arrears"].includes(page) && (
               <IconButton
                 icon="calendar"
@@ -490,14 +563,17 @@ export function ModuleTable({
                     label="Signer l’étape"
                     className="small primary"
                     disabled={busy}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `Signer l’étape « ${statuses[row.statut]} » ?`,
-                        )
-                      )
-                        mutate(`/loans/${row.IDP}/sign`, {});
-                    }}
+                    onClick={() =>
+                      setDialog({
+                        title: "Confirmer la signature",
+                        confirmation: {
+                          path: `/loans/${row.IDP}/sign`,
+                          body: {},
+                          submitLabel: "Signer",
+                          message: `Signer l’étape « ${statuses[row.statut]} » ?`,
+                        },
+                      })
+                    }
                   />
                 )}
                 {canSign(row, "reject") && (

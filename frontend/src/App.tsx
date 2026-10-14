@@ -10,7 +10,7 @@ import {
   userCan,
   availableClosureMonths,
 } from "./config/navigation";
-import { now, money, months } from "./utils/format";
+import { auditActionLabel, auditReferenceLabel, auditModuleLabel, contributionStatus, now, money, months } from "./utils/format";
 import { api } from "./services/api";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Login } from "./pages/Login";
@@ -98,12 +98,12 @@ export function App() {
     [monthlyView, setMonthlyView] = useState<any>(false),
     [usersTab, setUsersTab] = useState<any>("accounts");
   useEffect(() => {
-    const activeTheme = user ? theme : "light";
+    const activeTheme = theme;
     document.documentElement.dataset.theme = activeTheme;
     document.documentElement.style.colorScheme = activeTheme;
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", activeTheme === "dark" ? "#10251f" : "#087f67");
+      ?.setAttribute("content", activeTheme === "dark" ? "#0b0d10" : "#087f67");
     try {
       localStorage.setItem("apes-theme", theme);
     } catch {}
@@ -329,7 +329,7 @@ export function App() {
   const meta = modules[page],
     filtered = Array.isArray(data)
       ? data.filter((r) =>
-          JSON.stringify(r).toLowerCase().includes(search.toLowerCase()),
+          (JSON.stringify(r) + (page === "audit" && r.created_at ? " " + new Date(r.created_at).toLocaleString("fr-FR") + " " + auditModuleLabel(r.entity) + " " + auditReferenceLabel(r.entity_id,r) + " " + auditActionLabel(r.action) : "")).toLocaleLowerCase("fr-FR").includes(search.trim().toLocaleLowerCase("fr-FR")),
         )
       : [];
   const changePage = (p) => {
@@ -360,7 +360,7 @@ export function App() {
             ["Salarie", "Salarié"],
             ["montant", "À cotiser · " + months[contributionMonth - 1], money],
             ["SoldeAnnuel", "Solde annuel", money],
-            ["statut", "État", (v) => (v === 1 ? "Actif" : "Arrêté")],
+            ["statut", "État", contributionStatus],
           ]
         : meta?.columns;
   const openCreate = () => {

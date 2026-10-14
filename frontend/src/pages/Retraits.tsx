@@ -18,7 +18,8 @@ export function Retraits({
   const [contributions, setContributions] = useState<any[]>([]),
     [error, setError] = useState(""),
     [form, setForm] = useState<any>(null),
-    [confirmation, setConfirmation] = useState<any>(null);
+    [confirmation, setConfirmation] = useState<any>(null),
+    [details, setDetails] = useState<any>(null);
   const [search, setSearch] = useState(""),
     [stateFilter, setStateFilter] = useState("");
   const year = Number(now.slice(0, 4));
@@ -165,79 +166,184 @@ export function Retraits({
           id="id"
           title="Demandes et versements"
           columns={columns}
-          actions={
-            manage
-              ? (row) => (
-                  <>
-                    {row.contribution_status === 1 && row.status === "pending" &&
-                      userCan(user, "withdrawals", "approve") && (
-                        <IconButton
-                          icon="check"
-                          label="Valider le retrait"
-                          className="small primary"
-                          disabled={busy}
-                          onClick={() =>
-                            setConfirmation({
-                              row,
-                              action: "approve",
-                              title: "Valider le retrait",
-                              message:
-                                "Autoriser ce retrait de " +
-                                money(row.amount) +
-                                " pour " +
-                                row.Salarie +
-                                " ? Le solde sera déduit au versement.",
-                            })
-                          }
-                        />
-                      )}
-                    {row.contribution_status === 1 && row.status === "approved" &&
-                      userCan(user, "withdrawals", "pay") && (
-                        <IconButton
-                          icon="withdraw"
-                          label="Confirmer le versement"
-                          className="small primary"
-                          disabled={busy}
-                          onClick={() =>
-                            setConfirmation({
-                              row,
-                              action: "pay",
-                              title: "Confirmer le versement",
-                              message:
-                                "Confirmer que " +
-                                money(row.amount) +
-                                " ont été remis à " +
-                                row.Salarie +
-                                " ? Cette confirmation déduira le montant de son solde annuel.",
-                            })
-                          }
-                        />
-                      )}
-                    {["pending", "approved"].includes(row.status) &&
-                      userCan(user, "withdrawals", "reject") && (
-                        <IconButton
-                          icon="close"
-                          label="Refuser le retrait"
-                          className="small danger"
-                          disabled={busy}
-                          onClick={() =>
-                            setConfirmation({
-                              row,
-                              action: "reject",
-                              reason: "",
-                              title: "Refuser le retrait",
-                              message:
-                                "Indiquez le motif du refus. Aucun montant ne sera déduit.",
-                            })
-                          }
-                        />
-                      )}
-                  </>
-                )
-              : undefined
-          }
+          actions={(row) => (
+            <>
+              <IconButton
+                icon="eye"
+                label="Voir le retrait"
+                className="small"
+                onClick={() => setDetails(row)}
+              />
+              {manage &&
+                row.contribution_status !== 2 &&
+                row.status === "pending" &&
+                userCan(user, "withdrawals", "approve") && (
+                  <IconButton
+                    icon="check"
+                    label="Valider le retrait"
+                    className="small primary"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirmation({
+                        row,
+                        action: "approve",
+                        title: "Valider le retrait",
+                        message:
+                          "Autoriser ce retrait de " +
+                          money(row.amount) +
+                          " pour " +
+                          row.Salarie +
+                          " ? Le solde sera déduit au versement.",
+                      })
+                    }
+                  />
+                )}
+              {manage &&
+                row.contribution_status !== 2 &&
+                row.status === "approved" &&
+                userCan(user, "withdrawals", "pay") && (
+                  <IconButton
+                    icon="withdraw"
+                    label="Confirmer le versement"
+                    className="small primary"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirmation({
+                        row,
+                        action: "pay",
+                        title: "Confirmer le versement",
+                        message:
+                          "Confirmer que " +
+                          money(row.amount) +
+                          " ont été remis à " +
+                          row.Salarie +
+                          " ? Cette confirmation déduira le montant de son solde annuel.",
+                      })
+                    }
+                  />
+                )}
+              {manage &&
+                ["pending", "approved"].includes(row.status) &&
+                userCan(user, "withdrawals", "reject") && (
+                  <IconButton
+                    icon="close"
+                    label="Refuser le retrait"
+                    className="small danger"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirmation({
+                        row,
+                        action: "reject",
+                        reason: "",
+                        title: "Refuser le retrait",
+                        message:
+                          "Indiquez le motif du refus. Aucun montant ne sera déduit.",
+                      })
+                    }
+                  />
+                )}
+            </>
+          )}
         />
       </section>
+      {details && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDetails(null);
+          }}
+        >
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="withdrawal-details-title"
+          >
+            <header>
+              <h2 id="withdrawal-details-title">Retrait · {details.Salarie}</h2>
+              <button aria-label="Fermer" onClick={() => setDetails(null)}>
+                ×
+              </button>
+            </header>
+            <dl className="form-grid withdrawal-details">
+              <div>
+                <dt>Matricule</dt>
+                <dd>{details.Matricule}</dd>
+              </div>
+              <div>
+                <dt>Année</dt>
+                <dd>{details.annee}</dd>
+              </div>
+              <div>
+                <dt>Montant demandé</dt>
+                <dd>
+                  <strong>{money(details.amount)}</strong>
+                </dd>
+              </div>
+              <div>
+                <dt>État</dt>
+                <dd>
+                  <span
+                    className={
+                      "badge " +
+                      (details.status === "rejected"
+                        ? "status-stopped"
+                        : details.status === "pending"
+                          ? "status-pending"
+                          : "status-active")
+                    }
+                  >
+                    {status(details.status)}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Date de demande</dt>
+                <dd>{date(details.requested_at)}</dd>
+              </div>
+              <div>
+                <dt>Cotisations du compte</dt>
+                <dd>
+                  {details.contribution_status === 1
+                    ? "Actives"
+                    : details.contribution_status === 3
+                      ? "En pause"
+                      : "Arrêtées"}
+                </dd>
+              </div>
+              <div>
+                <dt>Motif</dt>
+                <dd>{details.reason}</dd>
+              </div>
+              <div>
+                <dt>Validé par</dt>
+                <dd>{details.validated_by || "—"}</dd>
+              </div>
+              <div>
+                <dt>Date de validation</dt>
+                <dd>{date(details.admin_at || details.personnel_at) || "—"}</dd>
+              </div>
+              <div>
+                <dt>Versement confirmé par</dt>
+                <dd>{details.paid_by_name || "—"}</dd>
+              </div>
+              <div>
+                <dt>Date de versement</dt>
+                <dd>{date(details.paid_at) || "—"}</dd>
+              </div>
+              {details.rejection_reason && (
+                <div>
+                  <dt>Motif du refus</dt>
+                  <dd>{details.rejection_reason}</dd>
+                </div>
+              )}
+            </dl>
+            <div className="modal-actions">
+              <button onClick={() => setDetails(null)}>Fermer</button>
+            </div>
+          </section>
+        </div>
+      )}
       {form && (
         <div
           className="modal-backdrop"
@@ -293,7 +399,8 @@ export function Retraits({
                     {contributions
                       .filter(
                         (row) =>
-                          Number(row.statut) === 1 && Number(row.SoldeAnnuel) > 0 &&
+                          [1, 3].includes(Number(row.statut)) &&
+                          Number(row.SoldeAnnuel) > 0 &&
                           (manage || row.Matricule === user.Matricule),
                       )
                       .map((row) => (

@@ -1,4 +1,6 @@
 export const actionIcons: any = {
+  pause: <><path d="M8 5v14M16 5v14" strokeWidth="4" /></>,
+  play: <path d="m8 4 12 8-12 8V4Z" />,
   withdraw: (
     <>
       <path d="M20 10V7H5a2 2 0 0 1 0-4h12v4M3 5v14a2 2 0 0 0 2 2h7" />
@@ -36,9 +38,7 @@ export const actionIcons: any = {
     </>
   ),
   stop: (
-    <>
-      <rect x="5" y="5" width="14" height="14" rx="2" />
-    </>
+    <path d="m7 7 10 10M17 7 7 17" />
   ),
   check: <path d="m5 12 4 4L19 6" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,

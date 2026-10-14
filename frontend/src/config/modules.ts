@@ -1,4 +1,4 @@
-import { date, money, statuses } from "./../utils/format";
+import { auditActionLabel, auditReferenceLabel, auditModuleLabel, contributionStatus, date, money, statuses } from "./../utils/format";
 
 export const modules: any = {
   withdrawals: { title: "Retraits", subtitle: "Demandes de retrait sur le solde annuel", id: "id", columns: [], fields: [] },
@@ -54,7 +54,7 @@ export const modules: any = {
       ["report", "Report", money],
       ["montant", "Cotisation prévue", money],
       ["SoldeAnnuel", "Solde", money],
-      ["statut", "État", (v) => (v === 1 ? "Actif" : "Arrêté")],
+      ["statut", "État", contributionStatus],
     ],
     fields: [
       ["mois", "Mois du versement", "months"],
@@ -198,10 +198,10 @@ export const modules: any = {
     id: "id",
     columns: [
       ["created_at", "Date", (v) => new Date(v).toLocaleString("fr-FR")],
-      ["username", "Utilisateur"],
-      ["action", "Action"],
-      ["entity", "Module"],
-      ["entity_id", "Référence"],
+      ["username", "Utilisateur", (value, row) => row.user_display_name || value || "Utilisateur supprimé"],
+      ["action", "Action", auditActionLabel],
+      ["entity", "Module", auditModuleLabel],
+      ["entity_id", "Référence", auditReferenceLabel],
     ],
   },
 };
