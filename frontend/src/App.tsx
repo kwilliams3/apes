@@ -149,6 +149,20 @@ export function App() {
       );
     } catch {}
   }, [user, page, year, contributionYear, contributionMonth]);
+  useEffect(()=>{
+    const breakpoint=window.matchMedia('(max-width:1024px)');
+    const resize=()=>{if(!breakpoint.matches)setMobile(false);};
+    breakpoint.addEventListener('change',resize);
+    return ()=>breakpoint.removeEventListener('change',resize);
+  },[]);
+  useEffect(() => {
+    if (!window.matchMedia('(max-width:1024px)').matches || (!mobile && !dialog)) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const escape = (event: KeyboardEvent) => { if(event.key==='Escape' && mobile) setMobile(false); };
+    document.addEventListener('keydown',escape);
+    return ()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',escape);};
+  },[mobile,dialog]);
   useEffect(() => {
     api("/auth/me")
       .then((u) => {
@@ -452,7 +466,8 @@ export function App() {
             );
   return (
     <div className="app-shell">
-      <Sidebar {...{ mobile, user, page, changePage }} />
+      {mobile && <button className="sidebar-backdrop" aria-label="Fermer le menu" onClick={()=>setMobile(false)} />}
+      <Sidebar {...{ mobile, user, page, changePage, setMobile }} />
       <div className="workspace">
         <Header
           {...{

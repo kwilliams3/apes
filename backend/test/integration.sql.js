@@ -316,6 +316,11 @@ test('parcours SQL complet dans une base temporaire isolée', {timeout:120000}, 
   await call('/withdrawals/'+pendingStopped.id+'/reject',{reason:'Cotisations arrêtées.'});
   await call('/contributions/'+withdrawalContribution.id+'/pause',{mois:10,reason:'Compte arrêté.'},'POST',409);
   await call('/contributions/'+withdrawalContribution.id+'/resume',{mois:10,reason:'Compte arrêté.'},'POST',409);
+  const stoppedEmployee=(await call('/employees')).find(r=>r.Matricule==='WITH001');assert.equal(stoppedEmployee.is_stopped,true);
+  await call('/employees/'+stoppedEmployee.IDEMP,{...stoppedEmployee,Nom:'Modification interdite.'},'PUT',409);
+  const stoppedImport=csvHeaders+'\nWITH001;M;Modification interdite;Test;3000;0;Région test;'+region.idregion+';Test\n';
+  const stoppedPreview=await previewCsv(stoppedImport,'/employees/import/preview',200,'update');assert.equal(stoppedPreview.canImport,false);assert.ok(stoppedPreview.entries[0].issues.some(issue=>issue.includes('arrêté')));
+  await previewCsv(stoppedImport,'/employees/import',400,'update');assert.equal((await call('/employees')).find(r=>r.Matricule==='WITH001').Nom,'Retrait');
   const pausedEmployee=await call('/employees',{Matricule:'PAUSE001',Nom:'Pause',Prenom:'Maternité',MontantCot:3000,SoldeExo:10000,IDREG:region.idregion},'POST',201);
   let pausedRow=(await call('/contributions?year='+year)).find(r=>r.Matricule==='PAUSE001');
   await call('/contributions/'+pausedRow.id+'/pause',{mois:8,reason:''},'POST',400);

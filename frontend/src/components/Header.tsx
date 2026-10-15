@@ -17,7 +17,9 @@ export function Header({
       <button
         className="mobile-menu"
         onClick={() => setMobile(!mobile)}
-        aria-label="Ouvrir le menu"
+        aria-label={mobile ? "Fermer le menu" : "Ouvrir le menu"}
+        aria-expanded={mobile}
+        aria-controls="app-sidebar"
       >
         ☰
       </button>

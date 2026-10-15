@@ -1,8 +1,9 @@
 import { nav, userCan, navGroup, navGroupLabels } from "../config/navigation";
 
-export function Sidebar({ mobile, user, page, changePage }: any) {
+export function Sidebar({ mobile, user, page, changePage, setMobile }: any) {
   return (
-    <aside className={"sidebar " + (mobile ? "open" : "")}>
+    <aside id="app-sidebar" className={"sidebar " + (mobile ? "open" : "")}>
+      <div className="sidebar-heading">
       <div className="brand">
         <img
           className="brand-logo"
@@ -14,6 +15,8 @@ export function Sidebar({ mobile, user, page, changePage }: any) {
         <div>
           APES<small>GESTION ASSOCIATIVE</small>
         </div>
+      </div>
+      <button className="sidebar-close" aria-label="Fermer le menu" onClick={()=>setMobile(false)}>×</button>
       </div>
       <p className="nav-caption">ESPACE DE TRAVAIL</p>
       <nav>

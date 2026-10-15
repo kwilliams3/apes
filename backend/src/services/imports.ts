@@ -121,7 +121,7 @@ export async function validateImport(
 ) {
   const regions = (await query("SELECT idregion,intitule FROM dbo.region"))
     .recordset;
-  const existing = (await query("SELECT IDEMP,Matricule FROM dbo.Salaries"))
+  const existing = (await query("SELECT s.IDEMP,s.Matricule,CAST(CASE WHEN (SELECT TOP 1 c.statut FROM dbo.cotisation c WHERE c.Matricule=s.Matricule ORDER BY c.annee DESC,c.id DESC)=2 THEN 1 ELSE 0 END AS BIT) AS is_stopped FROM dbo.Salaries s"))
     .recordset;
   const fold = (value) =>
     value
@@ -152,7 +152,8 @@ export async function validateImport(
       entry.issues.push("Matricule déjà enregistré dans APES.");
     if (previous && mode === "update") {
       entry.existingId = previous.IDEMP;
-      entry.warnings.push(
+      if(previous.is_stopped) entry.issues.push("Salarié arrêté : la modification de son dossier est interdite.");
+      else entry.warnings.push(
         "Le profil salarié sera mis à jour ; les cotisations et versements existants restent inchangés.",
       );
     }

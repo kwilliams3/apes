@@ -115,6 +115,56 @@ try{
  await evaluate("document.querySelector('.modal header button').click()");
  console.log('Formulaire de prêt et aperçu financier vérifiés sans enregistrement.');
  await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent.endsWith('Cotisations')).click()");await until("document.querySelector('h1')?.textContent==='Cotisations' && !document.body.innerText.includes('Chargement des données')");await until("(()=>{const button=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Générer le mois');if(!button)return false;button.click();return true;})()");await until("document.querySelector('#dialog-title')?.textContent==='Déclarer les cotisations du mois' && !!document.querySelector('.modal table')");assert.equal(await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Confirmer les cotisations').disabled"),true);await evaluate("document.querySelector('.modal header button').click()");console.log('Aperçu mensuel vérifié sans déclaration de versements.');
+ const mobileNavLabels=await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).map(button=>button.textContent)");
+ for(const width of [320,390,768,1024]){
+  await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
+  for(const label of mobileNavLabels){
+   await evaluate("document.querySelector('.mobile-menu').click()");await until("!!document.querySelector('.sidebar.open')");
+   assert.equal(await evaluate("document.body.style.overflow"),'hidden');
+   await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(button=>button.textContent==="+JSON.stringify(label)+").click()");
+   await until("!document.querySelector('.sidebar.open') && !document.querySelector('.loading-screen') && !!document.querySelector('.card,.stat')");
+   assert.equal(await evaluate("!!document.querySelector('.alert.error') || document.body.innerText.includes('Données indisponibles')"),false,'Mobile '+width+' '+label);
+   const overflow=await evaluate("({viewport:innerWidth,width:document.documentElement.scrollWidth,offenders:Array.from(document.querySelectorAll('main *')).filter(el=>el.getBoundingClientRect().right>innerWidth+2 && !el.closest('.chart-scroll,.table-scroll')).slice(0,5).map(el=>el.tagName+'.'+el.className)})");
+   assert.ok(overflow.width<=width+2,'Débordement mobile '+width+' '+label+' '+JSON.stringify(overflow));
+  }
+  console.log('Responsive vérifié : '+width+' px, '+mobileNavLabels.length+' pages.');
+ }
+ await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await evaluate("document.querySelector('.mobile-menu').click()");await until("!!document.querySelector('.sidebar.open')");
+ await evaluate("document.querySelector('.sidebar-close').click()");await until("!document.querySelector('.sidebar.open')");
+ await evaluate("document.querySelector('.mobile-menu').click()");await until("!!document.querySelector('.sidebar.open')");
+ await evaluate("document.querySelector('.sidebar-backdrop').click()");await until("!document.querySelector('.sidebar.open')");
+ for(const [width,height] of [[320,568],[390,844],[768,1024],[844,390]]){
+  await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});
+  await evaluate("document.querySelector('.mobile-menu').click()");await until("!!document.querySelector('.sidebar.open')");
+  await until("document.querySelector('.sidebar.open').getBoundingClientRect().left >= -1");
+  const geometry=await evaluate("(()=>{const sidebar=document.querySelector('.sidebar'),header=sidebar.querySelector('.sidebar-heading').getBoundingClientRect(),brand=sidebar.querySelector('.brand').getBoundingClientRect(),close=sidebar.querySelector('.sidebar-close').getBoundingClientRect(),nav=sidebar.querySelector('nav').getBoundingClientRect(),footer=sidebar.querySelector('.sidebar-bottom').getBoundingClientRect(),rect=sidebar.getBoundingClientRect();return {width:rect.width,height:rect.height,headerBottom:header.bottom,brandRight:brand.right,closeLeft:close.left,navTop:nav.top,navBottom:nav.bottom,footerTop:footer.top,footerBottom:footer.bottom}})()");
+  assert.ok(geometry.width<=width && geometry.height<=height+1,'Sidebar bounds '+JSON.stringify(geometry));
+  assert.ok(geometry.brandRight<=geometry.closeLeft+1,'Logo/close overlap '+JSON.stringify(geometry));
+  assert.ok(geometry.navTop>=geometry.headerBottom && geometry.navBottom<=geometry.footerTop+1 && geometry.footerBottom<=height,'Sidebar scroll/footer overlap '+JSON.stringify(geometry));
+  await evaluate("(()=>{const nav=document.querySelector('.sidebar nav');nav.scrollTop=nav.scrollHeight})()");
+  assert.equal(await evaluate("(()=>{const nav=document.querySelector('.sidebar nav'),r=nav.getBoundingClientRect(),last=nav.querySelector('button:last-child').getBoundingClientRect();return last.top>=r.top && last.bottom<=r.bottom+1})()"),true,'Last module not reachable '+width+'x'+height);
+  if(width===390||height===390){const capture=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile('.preview/sidebar-'+width+'x'+height+'.png',Buffer.from(capture.data,'base64'));}
+  await evaluate("document.querySelector('.sidebar-close').click()");await until("!document.querySelector('.sidebar.open')");
+ }
+ await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ console.log('Sidebar vérifiée : largeur, logo, fermeture, défilement et pied de page en portrait et paysage.');
+ const mobileDialogChecks=[['Salariés','Nouveau'],['Prêts & échéances','Nouveau'],['Retraits','Demander un retrait']];
+ for(const [label,action] of mobileDialogChecks){
+  await evaluate("document.querySelector('.mobile-menu').click()");await until("!!document.querySelector('.sidebar.open')");
+  await evaluate("Array.from(document.querySelectorAll('.sidebar nav button')).find(button=>button.textContent.endsWith("+JSON.stringify(label)+")).click()");
+  await until("!document.querySelector('.loading-screen') && Array.from(document.querySelectorAll('.toolbar button')).some(button=>button.textContent.includes("+JSON.stringify(action)+"))");
+  await evaluate("Array.from(document.querySelectorAll('.toolbar button')).find(button=>button.textContent.includes("+JSON.stringify(action)+")).click()");
+  await until("!!document.querySelector('.modal')");
+  const modal=await evaluate("(()=>{const el=document.querySelector('.modal'),r=el.getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,scroll:el.scrollWidth,width:el.clientWidth,viewport:innerHeight}})()");
+  assert.ok(modal.left>=0&&modal.right<=390&&modal.height<=modal.viewport&&modal.scroll<=modal.width+2,'Modal mobile '+label+' '+JSON.stringify(modal));
+  await evaluate("document.querySelector('.modal header button').click()");
+ }
+ const mobileShot=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile('.preview/responsive-390.png',Buffer.from(mobileShot.data,'base64'));
+ await call('Emulation.setDeviceMetricsOverride',{width:844,height:390,deviceScaleFactor:1,mobile:true});
+ assert.ok(await evaluate("document.documentElement.scrollWidth<=innerWidth+2"),'Paysage mobile');
+ await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+ console.log('Menu mobile, fermeture, modals de création et paysage vérifiés.');
  await evaluate("document.querySelector('.profile-trigger').click()");await until("!!document.querySelector('.profile-options')");await evaluate("Array.from(document.querySelectorAll('.profile-options button')).find(b=>b.textContent==='Déconnexion').click()");await until("document.querySelector('#dialog-title')?.textContent==='Confirmer la déconnexion'");await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Annuler').click()");assert.equal(await evaluate("!!document.querySelector('.profile')"),true);await evaluate("document.querySelector('.profile-trigger').click()");await until("!!document.querySelector('.profile-options')");await evaluate("Array.from(document.querySelectorAll('.profile-options button')).find(b=>b.textContent==='Déconnexion').click()");await until("document.querySelector('#dialog-title')?.textContent==='Confirmer la déconnexion'");await evaluate("Array.from(document.querySelectorAll('.modal button')).find(b=>b.textContent==='Se déconnecter').click()");await until('!!document.querySelector("input[name=username]")');
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  const mobile=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile('.preview/login-mobile.png',Buffer.from(mobile.data,'base64'));

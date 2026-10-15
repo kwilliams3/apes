@@ -337,6 +337,7 @@ export function ModuleTable({
             )}
             {userCan(user, page, "update") &&
               (page !== "contributions" || Number(row.statut) === 1) &&
+              (page !== "employees" || !row.is_stopped) &&
               [
                 "employees",
                 "contributions",

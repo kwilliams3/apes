@@ -16,11 +16,15 @@ import {
 } from "./../services/imports.js";
 import { AppError } from "./../utils/domain.js";
 import { idOf, employeeSchema, insertEmployee } from "../routes/shared.js";
+async function assertEmployeeEditable(matricule: string, tx: any) {
+ const latest=(await query('SELECT TOP 1 statut FROM dbo.cotisation WITH(UPDLOCK,HOLDLOCK) WHERE Matricule=@matricule ORDER BY annee DESC,id DESC',{matricule},tx)).recordset[0];
+ if(latest?.statut===2)throw new AppError('Ce salarié est arrêté. Son dossier ne peut plus être modifié.',409);
+}
 export const getSalariesHandler4 = async (req: any, res: any) =>
   res.json(
     (
       await query(
-        `SELECT * FROM dbo.Salaries ${canReadAll(req.user, "employees") ? "" : "WHERE Matricule=@matricule"} ORDER BY Nom,Prenom`,
+        `SELECT s.*,CAST(CASE WHEN (SELECT TOP 1 c.statut FROM dbo.cotisation c WHERE c.Matricule=s.Matricule ORDER BY c.annee DESC,c.id DESC)=2 THEN 1 ELSE 0 END AS BIT) AS is_stopped FROM dbo.Salaries s ${canReadAll(req.user, "employees") ? "" : "WHERE Matricule=@matricule"} ORDER BY Nom,Prenom`,
         { matricule: req.user.Matricule || "" },
       )
     ).recordset,
@@ -46,6 +50,7 @@ export const putSalariesHandler6 = async (req: any, res: any) => {
         )
       ).recordset[0];
       if (!existing) throw new AppError("Salarié introuvable.", 404);
+      await assertEmployeeEditable(existing.Matricule,tx);
       if (existing.Matricule !== data.Matricule)
         throw new AppError(
           "Le matricule ne peut pas être modifié après création.",
@@ -104,6 +109,7 @@ export const postSalariesHandler8 = async (req: any, res: any) => {
     for (const entry of result.entries) {
       if (entry.existingId) {
         const d = entry.data;
+        await assertEmployeeEditable(d.Matricule,tx);
         const changed = await query(
           "UPDATE dbo.Salaries SET Civilite=@Civilite,Nom=@Nom,Prenom=@Prenom,MontantCot=@MontantCot,SoldeExo=@SoldeExo,IDREG=@IDREG,Region=@Region,SITE=@SITE WHERE IDEMP=@id",
           { ...d, id: entry.existingId, Region: entry.effectiveRegion },

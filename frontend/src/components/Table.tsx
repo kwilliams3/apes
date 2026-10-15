@@ -48,8 +48,8 @@ export function Table({ rows, columns, id, actions, title }: TableProps) {
       <tbody>
         {items.map((r) => (
           <tr key={r[id]}>
-            {columns.map(([k, , format]) => (
-              <td key={k}>
+            {columns.map(([k, label, format]) => (
+              <td key={k} data-label={label}>
                 {["statut", "status", "reversed_at"].includes(k) ? (
                   <span
                     className={statusBadgeClass(
@@ -66,7 +66,7 @@ export function Table({ rows, columns, id, actions, title }: TableProps) {
               </td>
             ))}
             {withActions && (
-              <td>
+              <td data-label="Actions">
                 <div className="row-actions">{actions(r)}</div>
               </td>
             )}
